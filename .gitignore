@@ -1,5 +1,3 @@
-
-decoding/figures
-decoding/results
-phonotactics/figures
-phonotactics/results
+*.png
+*.fig
+*.mat
