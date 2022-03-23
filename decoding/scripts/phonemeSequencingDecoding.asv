@@ -13,14 +13,14 @@ gammaF = [70 150]; % frequency in Hz
 Task.Name = 'Phoneme_Sequencing';
 Subject = popTaskSubjectData(Task);
 %% Iterating through subjects
-for iSubject = 1:length(Subject)
+for iSubject = 7:length(Subject)
     % Update this code
     disp(['Loading Subject data:' dLabels(iSubject).name]);    
         d = []; ieegCarResp = []; ieegCarImpFilt = []; ieegGamma = []; ieegSplit = [];
         Experiment = Subject(iSubject).Experiment;
         fsD = Experiment.recording.sample_rate;
         Trials = Subject(iSubject).Trials;
-        allChannels = string({Subject(iSubject).ChannelInfo.Name});
+        allChannels = ({Subject(iSubject).ChannelInfo.Name});
         badChannels = Subject(iSubject).badChannels;
         trialInfo = Subject(iSubject).trialInfo;
     disp('done')
@@ -65,9 +65,9 @@ for iSubject = 1:length(Subject)
         goodChannels = setdiff(1:size(ieegSplitResp,1),badChannels);
 
         [~,goodtrials] = remove_bad_trials(ieegCarSplit,14);
-        goodTrialsCommon = extractCommonTrials(goodtrials(anatChan));
-        ieegBaseClean = ieegCarBase;
-        ieegCarClean = ieegCarSplit;
+        %goodTrialsCommon = extractCommonTrials(goodtrials(anatChan));
+        ieegBaseClean = ieegCarBase(:,1:156,:);
+        ieegCarClean = ieegCarSplit(:,1:156,:);
     disp('done');
  %% High Gamma Extraction 
     disp('Extracting High Gamma')
@@ -111,7 +111,7 @@ for iSubject = 1:length(Subject)
     disp('Labeling phoneme features');
         trialNames = [];
         trialInfoResp = trialInfo(respId);
-        trialClean = trialInfoResp;
+        trialClean = trialInfoResp(1:156);
         phonCVClass = [];
         phonIndClass = [];
 
