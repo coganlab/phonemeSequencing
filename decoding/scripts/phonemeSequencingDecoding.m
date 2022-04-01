@@ -3,7 +3,7 @@ global DUKEDIR
 DUKEDIR = 'E:\Box Sync\Box Sync\CoganLab\D_Data\Phoneme_Sequencing';
 dLabels = dir(DUKEDIR);
 dLabels = dLabels(3:end);
-resFold = 'E:\inUnitData\phonemeSequencing\decoding\results\v3';
+resFold = 'E:\inUnitData\phonemeSequencing\decoding\results\v8';
 tw = [-2 2]; % epoch time window
 etw = [-1 1]; % high gamma time window
 
@@ -13,7 +13,7 @@ gammaF = [70 150]; % frequency in Hz
 Task.Name = 'Phoneme_Sequencing';
 Subject = popTaskSubjectData(Task);
 %% Iterating through subjects
-for iSubject = 5:length(Subject)
+for iSubject = 1:length(Subject)
     % Update this code
     disp(['Loading Subject data:' dLabels(iSubject).name]);    
         d = []; ieegCarResp = []; ieegCarImpFilt = []; ieegGamma = []; ieegSplit = [];
@@ -39,9 +39,10 @@ for iSubject = 5:length(Subject)
         ifgChan = contains(channelName,'opercularis');
         frontalChan = contains(channelName,'front');
         temporalChan = contains(channelName,'temporal');
-        anatChan = sensorymotorChan;
+        anatChan = sensorymotorChan|ifgChan|frontalChan|temporalChan;
         disp(['Number of anatomical channels : ' num2str(sum(anatChan))]);
     disp('done')
+
 %% Loading all the data
     
     
@@ -83,8 +84,8 @@ for iSubject = 5:length(Subject)
             [~,ieegGammaRespdown(:,iTrial,:)] = EcogExtractHighGammaTrial(double(squeeze(ieegCarClean(:,iTrial,:))),fsD,fsDown,[gInterval(1) gInterval(2)],tw,[-0.25 0.25],[]);
         end
     %     
-        ieegGammaRespPower = log10(squeeze(mean(ieegGammaRespdown.^2,3)));
-        ieegGammaBasePower = log10(squeeze(mean(ieegGammaBasedown.^2,3)));
+        ieegGammaRespPower = (squeeze(mean(log10(ieegGammaRespdown.^2),3)));
+        ieegGammaBasePower = (squeeze(mean(log10(ieegGammaBasedown.^2),3)));
         pChan = [];
 
         for iChan = 1:size(ieegGammaBasedown,1)
@@ -222,7 +223,7 @@ for iSubject = 5:length(Subject)
                 end
                 ieegGammaSig  = squeeze(ieegGamma(pvalsMCleanProd&anatChan,:,:));
             disp('done');        
-          save(strcat(resFold,'\',dLabels(iSubject).name,'_phonDecodeMotorHGPackSigChannelCarAnatSignificant_v3.mat'),'accChan','allChannels','CMatCat','anatChan','specPower','pvalsMCleanProd','accChan','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonError','ieegGammaSig','phonIndClass','timeRange','accTime');
+          save(strcat(resFold,'\',dLabels(iSubject).name,'_phonDecodeMotorHGPackSigChannelCarAnatSignificant.mat'),'accChan','allChannels','CMatCat','anatChan','specPower','pvalsMCleanProd','accChan','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonError','ieegGammaSig','phonIndClass','timeRange','accTime');
     end
 close all;
 end

@@ -3,7 +3,7 @@ global DUKEDIR
 DUKEDIR = 'E:\Box Sync\Box Sync\CoganLab\D_Data\Phoneme_Sequencing';
 dLabels = dir(DUKEDIR);
 dLabels = dLabels(3:end);
-resFold = 'E:\inUnitData\phonemeSequencing\decoding\results\v3';
+resFold = 'E:\inUnitData\phonemeSequencing\decoding\results\v5';
 tw = [-2 2]; % epoch time window
 etw = [-1 1]; % high gamma time window
 
@@ -13,7 +13,7 @@ gammaF = [70 150]; % frequency in Hz
 Task.Name = 'Phoneme_Sequencing';
 Subject = popTaskSubjectData(Task);
 %% Iterating through subjects
-for iSubject = 7:length(Subject)
+for iSubject = 1:length(Subject)
     % Update this code
     disp(['Loading Subject data:' dLabels(iSubject).name]);    
         d = []; ieegCarResp = []; ieegCarImpFilt = []; ieegGamma = []; ieegSplit = [];
@@ -46,11 +46,11 @@ for iSubject = 7:length(Subject)
     
     
     disp('Loading IEEG data'); 
-        [ieegSplit,~,trigOnset]=trialIEEGUpdate(Trials,1:length(allChannels),'ResponseStart','ieeg',tw.*1000);
+        [ieegSplit]=trialIEEG(Trials,1:length(allChannels),'ResponseStart',tw.*1000);
         ieegSplit = permute(ieegSplit,[2,1,3]);
-        ieegBase = squeeze(trialIEEGUpdate(Trials,1:length(allChannels),'Start','ieeg',tw.*1000));
+        ieegBase = squeeze(trialIEEG(Trials,1:length(allChannels),'Start',tw.*1000));
         ieegBase = permute(ieegBase,[2,1,3]);
-        respId = find(~isnan(trigOnset));
+        respId = find(~[Trials.NoResponse]);
         ieegSplitResp = ieegSplit(:,respId,:);
         ieegBaseResp = ieegBase(:,respId,:);
     disp('done');
@@ -83,8 +83,8 @@ for iSubject = 7:length(Subject)
             [~,ieegGammaRespdown(:,iTrial,:)] = EcogExtractHighGammaTrial(double(squeeze(ieegCarClean(:,iTrial,:))),fsD,fsDown,[gInterval(1) gInterval(2)],tw,[-0.25 0.25],[]);
         end
     %     
-        ieegGammaRespPower = log10(squeeze(mean(ieegGammaRespdown.^2,3)));
-        ieegGammaBasePower = log10(squeeze(mean(ieegGammaBasedown.^2,3)));
+        ieegGammaRespPower = (squeeze(mean(ieegGammaRespdown.^2,3)));
+        ieegGammaBasePower = (squeeze(mean(ieegGammaBasedown.^2,3)));
         pChan = [];
 
         for iChan = 1:size(ieegGammaBasedown,1)
@@ -222,7 +222,7 @@ for iSubject = 7:length(Subject)
                 end
                 ieegGammaSig  = squeeze(ieegGamma(pvalsMCleanProd&anatChan,:,:));
             disp('done');        
-          save(strcat(resFold,'\',dLabels(iSubject).name,'_phonDecodeMotorHGPackSigChannelCarAnatSignificant_v3.mat'),'accChan','allChannels','CMatCat','anatChan','specPower','pvalsMCleanProd','accChan','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonError','ieegGammaSig','phonIndClass','timeRange','accTime');
+          save(strcat(resFold,'\',dLabels(iSubject).name,'_phonDecodeMotorHGPackSigChannelCarAnatSignificant.mat'),'accChan','allChannels','CMatCat','anatChan','specPower','pvalsMCleanProd','accChan','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonError','ieegGammaSig','phonIndClass','timeRange','accTime');
     end
 close all;
 end
