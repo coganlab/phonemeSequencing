@@ -14,12 +14,12 @@ gammaF = [70 150]; % frequency in Hz
 Task.Name = 'Phoneme_Sequencing';
 Subject = popTaskSubjectData(Task);
 %% Iterating through subjects
-for iSubject = 1:length(Subject)
+for iSubject = 40:length(Subject)
     % Update this code
     disp(['Loading Subject data:' dLabels(iSubject).name]);    
         d = []; ieegCarResp = []; ieegCarImpFilt = []; ieegGamma = []; ieegSplit = [];
         Experiment = Subject(iSubject).Experiment;
-        fsD = Experiment.recording.sample_rate;
+        fsD = Experiment.processing.ieeg.sample_rate;
         Trials = Subject(iSubject).Trials;
         allChannels = ({Subject(iSubject).ChannelInfo.Name});
         badChannels = Subject(iSubject).badChannels;
@@ -148,7 +148,7 @@ for iSubject = 1:length(Subject)
                     disp(['Position : ' num2str(iPhon)]);
                     CmatPhoneme = zeros(4,4);
                     for iTer = 1:5
-                        [~,ytestAll,ypredAll,optimVarAll] = pcaLinearDecoderWrap(ieegGamma(pvalsMCleanProd&anatChan,syllableUnitFirst==1,:),phonIndClass(syllableUnitFirst==1,iPhon)',etw,[-0.5 0.5],80,20,0);
+                        [~,ytestAll,ypredAll,optimVarAll] = pcaLinearDecoderWrap(ieegGamma(pvalsMCleanProd&anatChan,syllableUnitFirst==1,:),phonIndClass(syllableUnitFirst==1,iPhon)',etw,[-0.5 0.5],[5:5:95],20,0);
                        %[~,ytestAll,ypredAll,aucAll] = linearDecoder(ieegModel(pvalsMCleanProd&anatChan,:,:,:),phonIndClass,[0 1],[0 1],20,0);
                         CmatAll = confusionmat(ytestAll,ypredAll);
                         CmatPhoneme = CmatPhoneme + CmatAll;
@@ -167,7 +167,7 @@ for iSubject = 1:length(Subject)
 
         end
                  
-          save(strcat(resFold,'\',dLabels(iSubject).name,'_vowelDecodeMotorHGPackSigChannelCarAnatSignificant.mat'),'allChannels','CMatCat','anatChan','pvalsMCleanProd','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonIndClass');
+          save(strcat(resFold,'\',dLabels(iSubject).name,'1_vowelDecodeMotorHGPackSigChannelCarAnatSignificant.mat'),'allChannels','CMatCat','anatChan','pvalsMCleanProd','accPhoneme','accPhonemeUnbias','accPhonemeChance','phonIndClass');
     end
 close all;
 end

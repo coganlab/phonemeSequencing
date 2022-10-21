@@ -4,7 +4,7 @@ DUKEDIR = 'E:\Box Sync\Box Sync\CoganLab\D_Data\Phoneme_Sequencing';
 dLabels = dir(DUKEDIR);
 dLabels = dLabels(3:end);
 
-tw = [-2 2.5]; % time window
+tw = [-2 2]; % time window
 etwG = [-1 1];
 etwGAuditory = [0 2];% epoch time window
 prtw = [-0.5 0]; % preonset time window
