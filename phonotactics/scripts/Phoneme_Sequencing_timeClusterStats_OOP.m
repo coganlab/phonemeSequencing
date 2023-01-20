@@ -74,7 +74,7 @@ for iSN=1:length(SNList)
     ieegBaseCAR=extractCar(ieegBaseStruct);
     clear ieegBaseStruct;
     ieegBaseHG = extractHiGamma(ieegBaseCAR,fDown,baseTimeRange);
-    normFactorBase = extractHGnormFactor(ieegBaseHG);
+   
     for iC=1:length(Task.Conds)
         for iF=1:length(Task.Conds(iC).Field)
           %  if iC<=2

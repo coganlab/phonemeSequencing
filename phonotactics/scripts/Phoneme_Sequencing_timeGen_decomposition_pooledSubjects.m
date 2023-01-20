@@ -23,22 +23,23 @@ selectRoi = '';
 fieldTime = [-1.5 1];
 respTimeThresh = 0;
 
-trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
+%trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
 
 ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Auditory', roi = selectRoi,Time= [-0.5 2],respTimeThresh=respTimeThresh,...
-    subsetElec=delayElecs,remWMchannels=true);
+    subsetElec=elecNameProductionClean,remWMchannels=true);
 hgNormFactor = {ieegHGStructAuditory(:).normFactor};
 ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Go', roi = selectRoi, Time=[-0.5 1],respTimeThresh=respTimeThresh,...
-    subsetElec=delayElecs,normFactor=hgNormFactor,remWMchannels=true);
+    subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'ResponseStart', roi = selectRoi, Time=[-1 1.5],respTimeThresh=respTimeThresh,...
-    subsetElec=delayElecs,normFactor=hgNormFactor,remWMchannels=true);
+    subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
 
 % Remove empty subjects
 emptyIds = [];
 ieegHGStruct = ieegHGStructAuditory;
+trialInfoStruct = [];
 for iSubject = 1:length(Subject)
     if(isempty(ieegHGStruct(iSubject).ieegHGNorm))
         emptyIds = [emptyIds iSubject];
@@ -46,15 +47,51 @@ for iSubject = 1:length(Subject)
         ieegHGStruct(iSubject).ieegHGNorm.data = cat(3,ieegHGStructAuditory(iSubject).ieegHGNorm.data,...
             ieegHGStructGo(iSubject).ieegHGNorm.data,ieegHGStructResponse(iSubject).ieegHGNorm.data);
         ieegHGStruct(iSubject).ieegHGNorm.name = ieegHGStruct(iSubject).ieegHGNorm.name + '_Go' + '_ResponseOnset';
-
+       trialInfoStruct(iSubject).phonemeTrial = phonemeSequenceTrialParser(ieegHGStruct(iSubject).trialInfo);   
     end
 
 end
 
-ieegHGStruct(emptyIds) = []
+ieegHGStruct(emptyIds) = [];
 trialInfoStruct(emptyIds) = [];
+
 % Pooling across channels based on minimum trial matching
 [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMinTrial(ieegHGStruct,trialInfoStruct);
+%% NNMF factor - averaged data
+
+ieegdatamean = squeeze(mean(ieegStructPooled.data,2));
+for iFactor = 1:10
+    iFactor
+    for iRep = 1:20
+        [W,H,D(iFactor,iRep)] = nnmf(ieegdatamean,iFactor);
+    end
+end
+
+
+[W,H] = nnmf(ieegdatamean,5);
+figure; plot(H');
+[maxVal,maxId] = max(W');
+cfg.elec_colors = lines(5);
+plot_subjs_on_average_grouping(channelNamePooled', maxId', 'fsaverage', cfg);
+
+%% NNMF factor - stretched data
+
+ieegDataStretch = reshape(ieegStructPooled.data,[size(ieegStructPooled.data,1) size(ieegStructPooled.data,2)*size(ieegStructPooled.data,3)]);
+for iFactor = 1:10
+    iFactor
+    for iRep = 1:20
+        [W,H,DStretch(iFactor,iRep)] = nnmf(ieegDataStretch,iFactor,'algorithm','mult','replicates',100);
+    end
+end
+
+
+[W,H] = nnmf(ieegDataStretch,4);
+HPermute = reshape(H,[size(H,1) size(ieegStructPooled.data,2) size(ieegStructPooled.data,3)]);
+figure; plot(squeeze(mean(HPermute,2))');
+[maxVal,maxId] = max(W');
+cfg.elec_colors = lines(4);
+plot_subjs_on_average_grouping(channelNamePooled', maxId', 'fsaverage', cfg);
+
 %% 3d tensor analysis
 
 ieegHiGammaTensor = tensor(permute(ieegStructPooled.data,[1 3 2]));
@@ -103,10 +140,10 @@ for r = 1:R
 end
 
 %% Extracting factors
-R = 8
+R = 10
 OPTS.tol = 1e-5;
 ieegHiGammaTensor = tensor(permute(ieegStructPooled.data,[1 3 2]));
-est_factors = cp_nmu(ieegHiGammaTensor,R,OPTS);
+est_factors = cp_nmu(ieegHiGammaTensor,R);
 elecFact = est_factors.u{1};
 timeFact = est_factors.u{2};
 trialFact = est_factors.u{3};
@@ -116,7 +153,8 @@ trialFact = est_factors.u{3};
 %viz_ktensor_freesurfer(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,R);
 % viz_ktensor_phonotactic(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,1:5);
 % viz_ktensor_phonotactic(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,6:10);
-viz_ktensor_phonotactic_v3(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,1:5);
+viz_ktensor_phonotactic_v2(est_factors,channelNamePooled',[-0.5 2;-0.5 1; -1 1.5] ,phonemeTrialPooled,1:5);
+viz_ktensor_phonotactic_v2(est_factors,channelNamePooled',[-0.5 2;-0.5 1; -1 1.5] ,phonemeTrialPooled,6:10);
 %viz_ktensor_phonotactic_v3(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,6:10);
 %viz_ktensor_phonotactic(est_factors,channelNamePooled',[0 2;-1.5 1; -1 1.5] ,phonemeTrialPooled,11:15);
 
