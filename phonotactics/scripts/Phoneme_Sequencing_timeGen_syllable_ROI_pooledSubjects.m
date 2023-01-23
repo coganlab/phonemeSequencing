@@ -18,20 +18,20 @@ subjectIds2remove = [1 27 31 37:length(Subject)];
 Subject(subjectIds2remove) = [];
 
 %% Loading Normalized High-Gamma for an ROI and corresponding trialInfo
-fieldEpoch = 'ResponseStart';
-% selectRoi = {'middletemporal','superiortemporal','banks'};
+fieldEpoch = 'Auditory';
+ selectRoi = {'temporal','banks'};
 %selectRoi = {'supramarginal','inferiorparietal'};
 % selectRoi = {'frontal','opercula','triangular'};
 %selectRoi = {'central'};
-selectRoi = '';
-fieldTime = [-1 1.5];
+%selectRoi = '';
+fieldTime = [-0.5 2];
 respTimeThresh = 0;
 
-trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
+[trialInfos,trialInfoStruct] = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
 
 ieegHGStruct = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = fieldEpoch, roi = selectRoi,Time=fieldTime,respTimeThresh=respTimeThresh,...
-    subsetElec=delayElecs,remWMchannels=true);
+    subsetElec=elecNameFeedBack,remWMchannels=false);
 
 % Remove empty subjects
 emptyIds = [];
@@ -46,7 +46,7 @@ trialInfoStruct(emptyIds) = [];
 % Pooling across channels based on minimum trial matching
 [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMaxTrial(ieegHGStruct,trialInfoStruct);
 
-save(fullfile(['pooledSubject_' Task.Name '_' ...
+save(fullfile(['pooledSubject_' Task.Name '_temporal_feedback' ...
     '_' fieldEpoch '_delayelecs_data.mat']),...
     'ieegStructPooled','phonemeTrialPooled',...
     'channelNamePooled');

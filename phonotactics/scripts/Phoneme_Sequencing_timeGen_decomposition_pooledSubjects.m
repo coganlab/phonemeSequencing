@@ -18,22 +18,22 @@ subjectIds2remove = [1 27 31 37:length(Subject)];
 Subject(subjectIds2remove) = [];
 
 %% Loading Normalized High-Gamma for an ROI and corresponding trialInfo
-fieldEpoch = 'Go';
+
 selectRoi = '';
-fieldTime = [-1.5 1];
 respTimeThresh = 0;
+timeEpoch = [-0.5000    2.0000;   -0.5000    1.0000;   -1.0000    1.5000];
 
 %trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
 
 ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
-    Epoch = 'Auditory', roi = selectRoi,Time= [-0.5 2],respTimeThresh=respTimeThresh,...
+    Epoch = 'Auditory', roi = selectRoi,Time= timeEpoch(1,:),respTimeThresh=respTimeThresh,...
     subsetElec=elecNameProductionClean,remWMchannels=true);
 hgNormFactor = {ieegHGStructAuditory(:).normFactor};
 ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
-    Epoch = 'Go', roi = selectRoi, Time=[-0.5 1],respTimeThresh=respTimeThresh,...
+    Epoch = 'Go', roi = selectRoi, Time=timeEpoch(2,:),respTimeThresh=respTimeThresh,...
     subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
-    Epoch = 'ResponseStart', roi = selectRoi, Time=[-1 1.5],respTimeThresh=respTimeThresh,...
+    Epoch = 'ResponseStart', roi = selectRoi, Time=timeEpoch(3,:),respTimeThresh=respTimeThresh,...
     subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
 
 % Remove empty subjects
@@ -57,6 +57,11 @@ trialInfoStruct(emptyIds) = [];
 
 % Pooling across channels based on minimum trial matching
 [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMinTrial(ieegHGStruct,trialInfoStruct);
+save(fullfile(['pooledSubject_' Task.Name '_' ...
+    '_stitch_prodelecs_data.mat']),...
+    'ieegStructPooled','phonemeTrialPooled',...
+    'channelNamePooled','timeEpoch');
+
 %% NNMF factor - averaged data
 
 ieegdatamean = squeeze(mean(ieegStructPooled.data,2));
