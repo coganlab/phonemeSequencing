@@ -8,7 +8,7 @@ global BOX_DIR
 
 
 fDown = 100; %Downsampled Sampling Frequency
-timeExtract = [-5 5];
+timeExtract = [-1.5 2];
 
 Task=[];
 
@@ -40,8 +40,9 @@ Task.Conds(1).Field(4).Time=[-0.5 1];
 
 
 SNList=1:length(Subject);
+%%
 %SNList=7;
-for iSN=1:length(SNList)
+for iSN=32
     SN=SNList(iSN);
     Trials=Subject(SN).Trials;
     counterN=0;
@@ -100,11 +101,11 @@ for iSN=1:length(SNList)
             chanSig = extractTimePermCluster(ieegFieldHG,ieegBaseHG);         
             channelNames = {Subject(SN).ChannelInfo(chanIdx).Name};
             
-%             if ~exist([DUKEDIR '\Stats\timePerm\'])
-%                 mkdir([DUKEDIR '\Stats\timePerm\'])
-%             end
-%             save([DUKEDIR '\Stats\timePerm\' Subject(SN).Name '_' Task.Name '_' ...
-%                 Task.Conds(iC).Name '_' Task.Conds(iC).Field(iF).Name '_' Task.Base.Name '.mat'],'chanSig','channelNames','ieegFieldHG','ieegBaseHG');
+            if ~exist([DUKEDIR '\Stats\timePerm\'])
+                mkdir([DUKEDIR '\Stats\timePerm\'])
+            end
+            save([DUKEDIR '\Stats\timePerm\' Subject(SN).Name '_' Task.Name '_' ...
+                Task.Conds(iC).Name '_' Task.Conds(iC).Field(iF).Name '_' Task.Base.Name '.mat'],'chanSig','channelNames','ieegFieldHG','ieegBaseHG');
         end
     end
 end
