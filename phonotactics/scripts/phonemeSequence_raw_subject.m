@@ -32,9 +32,9 @@ Task.Conds(1).Field(1).Time=[-0.5 2];
 Task.Conds(1).Field(2).Name='Response';
 Task.Conds(1).Field(2).Epoch='ResponseStart';
 Task.Conds(1).Field(2).Time=[-1 1.5];
-timePad = 0.5;
+timePad = 0.2;
 %%
-for iSubject=[34]
+for iSubject=1:length(Subject)
      
     Subject(iSubject).Name
     Trials=Subject(iSubject).Trials;
@@ -95,31 +95,32 @@ for iSubject=[34]
    
     condIdx=ones(length(Subject(iSubject).Trials),1);
     
-    baseEpoch=Task.Base.Epoch;
-    baseTimeRange=Task.Base.Time; 
-    baseTimeExtract = [baseTimeRange(1)-timePad baseTimeRange(2)+timePad];
-    Trials=Subject(iSubject).Trials(setdiff(1:length(Subject(iSubject).Trials),noiseIdx));
-    
-    ieegBase=trialIEEG(Trials,chanIdx,baseEpoch,baseTimeExtract.*1000);
-    ieegBase = permute(ieegBase,[2,1,3]);
-    fs = Subject(iSubject).Experiment.processing.ieeg.sample_rate;   
-    ieegBaseStruct = ieegStructClass(ieegBase, fs, baseTimeExtract, [1 fs/2], baseEpoch);
-    clear ieegBase;
-    ieegBaseCAR=extractCar(ieegBaseStruct);
-    clear ieegBaseStruct;
-    [NumTrials,goodtrials] = remove_bad_trials(ieegBaseCAR.data,10);
-    goodTrialsCommon = extractCommonTrials(goodtrials);
-    waveSpecBase = getWaveletScalogram(ieegBaseCAR.data(chan2select,goodTrialsCommon,:),ieegBaseCAR.fs,fHigh=1000);
-    meanFreqChanOut = extractSpecNorm(waveSpecBase.spec,baseTimeExtract,baseTimeRange);
-    clear waveSpecBase;
-    clear ieegBaseCar;
+%     baseEpoch=Task.Base.Epoch;
+%     baseTimeRange=Task.Base.Time; 
+%     baseTimeExtract = [baseTimeRange(1)-timePad baseTimeRange(2)+timePad];
+%     Trials=Subject(iSubject).Trials(setdiff(1:length(Subject(iSubject).Trials),noiseIdx));
+%     
+%     ieegBase=trialIEEG(Trials,chanIdx,baseEpoch,baseTimeExtract.*1000);
+%     ieegBase = permute(ieegBase,[2,1,3]);
+%     fs = Subject(iSubject).Experiment.processing.ieeg.sample_rate;   
+%     ieegBaseStruct = ieegStructClass(ieegBase, fs, baseTimeExtract, [1 fs/2], baseEpoch);
+%     clear ieegBase;
+%     ieegBaseCAR=extractCar(ieegBaseStruct);
+%     clear ieegBaseStruct;
+%     [NumTrials,goodtrials] = remove_bad_trials(ieegBaseCAR.data,10);
+%     goodTrialsCommon = extractCommonTrials(goodtrials);
+%     waveSpecBase = getWaveletScalogram(ieegBaseCAR.data(chan2select,goodTrialsCommon,:),ieegBaseCAR.fs,fHigh=1000);
+%     meanFreqChanOut = extractSpecNorm(waveSpecBase.spec,baseTimeExtract,baseTimeRange);
+%     clear waveSpecBase;
+%     clear ieegBaseCar;
+%%
     for iCond=1:length(Task.Conds)
         trials2Select = setdiff(find(condIdx==iCond),cat(2,noiseIdx,noResponseIdx));
         if(isempty(trials2Select))
             continue;
         end
         % Iterting through field: 'Auditory', 'Delay', 'Response'
-        for iField=1:length(Task.Conds(iCond).Field)
+        for iField= 1:length(Task.Conds(iCond).Field)
             Trials = Subject(iSubject).Trials(trials2Select);
             Epoch=Task.Conds(iCond).Field(iField).Epoch;
             fieldTimeRange=Task.Conds(iCond).Field(iField).Time;          
@@ -130,11 +131,13 @@ for iSubject=[34]
             clear ieegField
             % Common average referencing
             ieegFieldCAR = extractCar(ieegFieldStruct);
+            ieegFilter = extractBandPassFilter(ieegFieldCAR,[100 400],200);
+            %ieegFilter = ieegFieldCAR;
             clear ieegFieldStruct;
-            [NumTrials,goodtrials] = remove_bad_trials(ieegFieldCAR.data,10);
+            [NumTrials,goodtrials] = remove_bad_trials(ieegFilter.data,10);
             goodTrialsCommon = extractCommonTrials(goodtrials);
-            data2spec = ieegFieldCAR.data(chan2select,goodTrialsCommon,:);
-            fs = ieegFieldCAR.fs;
+            data2spec = ieegFilter.data(chan2select,:,:);
+            fs = ieegFilter.fs;
             %waveSpecField = getWaveletScalogram(ieegFieldCAR.data(chan2select,goodTrialsCommon,:),ieegFieldCAR.fs,fHigh=1000);
             clear ieegFieldCar
             %             for iChan = 1:length(chan2select)
@@ -166,22 +169,29 @@ for iSubject=[34]
             for iChan=1:min(60,length(chan2select)-iChan2);
                 subplot(6,10,iChan);
                 iChan2=iChan+iF*60;
-                iChan2              
-                waveSpecField = getWaveletScalogram(data2spec(iChan2,:,:),fs,fHigh=1000);
-                %tvimage(sq((Auditory_nSpec([1],iChan2,:,1:200))),'XRange',[-0.5,1]);
-                specChanMap(waveSpecField.spec,[],1,[],fieldTimeExtract,[-1.5 -1],[-0.25 0.25],[1 500],[70 150],[-2 2],1,meanFreqChanOut(iChan2,:));
-                set(gca,'YTick',1:10:length(waveSpecField.fscale));
-                set(gca,'YTickLabels',round(waveSpecField.fscale(1:10:end)));
-                set(gca,'FontSize',10);
+                iChan2
+                timeVect = linspace(ieegFilter.tw(1),ieegFilter.tw(2),size(ieegFilter.data,3));
+%                 
+%                 plot(timeVect,(abs(hilbert(squeeze(data2spec(iChan2,:,:))))),'color',[0 0 0] +0.75);
+%                 hold on;
+                plot(timeVect,mean(abs(hilbert(squeeze(data2spec(iChan2,:,:)))),1),'color',[0 0 0]);
                 xlim(fieldTimeRange);
+%                 ylim([0.02 0.03])
+%                 waveSpecField = getWaveletScalogram(data2spec(iChan2,:,:),fs,fHigh=1000);
+%                 %tvimage(sq((Auditory_nSpec([1],iChan2,:,1:200))),'XRange',[-0.5,1]);
+%                 specChanMap(waveSpecField.spec,[],1,[],fieldTimeExtract,[-1.5 -1],[-0.25 0.25],[1 500],[70 150],[-2 2],1,meanFreqChanOut(iChan2,:));
+%                 set(gca,'YTick',1:10:length(waveSpecField.fscale));
+%                 set(gca,'YTickLabels',round(waveSpecField.fscale(1:10:end)));
+                set(gca,'FontSize',10);
+%                 xlim(fieldTimeRange);
                 title(chanNameSubject(iChan2))
-                clear waveSpecField
+%                 clear waveSpecField
             end;
             F=getframe(FigS);
-            if ~exist([DUKEDIR '/Figs/Wavelet/' Subject(iSubject).Name],'dir')
-                mkdir([DUKEDIR '/Figs/Wavelet/' Subject(iSubject).Name])
+            if ~exist([DUKEDIR '/Figs/Raw/' Subject(iSubject).Name],'dir')
+                mkdir([DUKEDIR '/Figs/Raw/' Subject(iSubject).Name])
             end
-            imwrite(F.cdata,[DUKEDIR '/Figs/Wavelet/' Subject(iSubject).Name '/' Subject(iSubject).Name '_PhonemeSequence_' Task.Conds(iCond).Field(iField).Name '_SpecGrams_1000Hz_' num2str(iF+1) '.png'],'png');    
+            imwrite(F.cdata,[DUKEDIR '/Figs/Raw/' Subject(iSubject).Name '/' Subject(iSubject).Name '_PhonemeSequence_100_400_hz_mean' Task.Conds(iCond).Field(iField).Name '_raw_' num2str(iF+1) '.png'],'png');    
           %  imwrite(F.cdata,[DUKEDIR '/Figs/' Subject(SN).Name '/' Subject(SN).Name '_PhonemeSequence_Auditory_SpecGrams_0.7to1.4C_' num2str(iF+1) '.png'],'png');
             close
         end  

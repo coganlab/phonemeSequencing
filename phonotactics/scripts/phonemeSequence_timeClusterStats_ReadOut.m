@@ -66,10 +66,10 @@ for iC=1:length(Task.Conds.Field)
         end
         if iS==1
             sigMatAll{iC}=sigMatTmp;
-           sigPowerAll{iC}=sq(mean(ieegCARHGZ,2));
+%            sigPowerAll{iC}=sq(mean(ieegCARHGZ,2));
         else
             sigMatAll{iC}=cat(1,sigMatAll{iC},sigMatTmp);
-            sigPowerAll{iC}=cat(1,sigPowerAll{iC},sq(mean(ieegCARHGZ,2)));
+%             sigPowerAll{iC}=cat(1,sigPowerAll{iC},sq(mean(ieegCARHGZ,2)));
         end
     end
 end
@@ -81,10 +81,11 @@ elecNameAllTimePerm = [];
             '_' Subject(subjIdx(iS)).Task '_' Task.Conds.Name ...
             '_' Task.Conds.Field(1).Name '_' Task.Base.Name '.mat']);
         elecNameSubj = [];
-        for iChan = 1:length(chanSig)
-            elecNameSubj{iChan} =  chanSig{iChan}.Name;
-        end
-        elecNameAllTimePerm= [elecNameAllTimePerm elecNameSubj];
+        assert(length(chanSig)==length(channelNames),'Channel dimension mismatch');
+%         for iChan = 1:length(chanSig)
+%             elecNameSubj{iChan} =  channelNames;
+%         end
+        elecNameAllTimePerm= [elecNameAllTimePerm channelNames];
  end
  %% Loading anatomical information
  subj_labels_loc_all = [];
@@ -190,23 +191,50 @@ respTimeIds = 51:150;
 preRespTimeIds = 51:100;
 postRespTimeIds = 101:150;
 
-baseClustFalse = (sum(sigMatAllClean{1}(:,baseTimeIds),2)==0);
-audClustTrue = (sum(sigMatAllClean{1}(:,audTimeIds),2)>1);
-preRespClustFalse = (sum(sigMatAllClean{3}(:,preRespTimeIds),2)==0);
-postRespClustTrue = (sum(sigMatAllClean{3}(:,postRespTimeIds),2)>1);
-respClustTrue = (sum(sigMatAllClean{3}(:,respTimeIds),2)>1);
+baseClustFalse = (sum(sigMatAll{4}(:,baseTimeIds),2)==0);
+audBaseClustFalse = (sum(sigMatAll{1}(:,baseTimeIds),2)==0);
+audClustTrue = (sum(sigMatAll{1}(:,audTimeIds),2)>1);
+preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
+postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
+respClustTrue = (sum(sigMatAll{3}(:,respTimeIds),2)>1);
 
-elecNameProduction = elecNameAllTimePermClean(baseClustFalse...
+elecNameProduction = elecNameAllTimePerm(baseClustFalse...
     &respClustTrue);
-elecNameFeedBack = elecNameAllTimePermClean(baseClustFalse&audClustTrue...
+elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
+elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audClustTrue...
     &preRespClustFalse&postRespClustTrue);
+elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
 
 feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack);
-muscleChannelIds = ismember(elecNameProduction,elecNameMuscleArtifact);
-
 elecNameProductionClean = elecNameProduction;
-elecNameProductionClean(feedbackChannelIds|muscleChannelIds) = [];
+elecNameProductionClean(feedbackChannelIds) = [];
 
+
+elecNameProduction = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse...
+    &respClustTrue);
+elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
+elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse&audClustTrue...
+    &preRespClustFalse&postRespClustTrue);
+elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
+
+feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack);
+elecNameProductionCleanAudBase = elecNameProduction;
+elecNameProductionCleanAudBase(feedbackChannelIds) = [];
+
+
+%% Selecting channels that are feedback
+% baseline = 0, auditory epoch = 1, pre-response onset = 0 , post-response
+% onset = 1
+baseTimeIds = 1:50;
+audTimeIds = 51:100;
+preRespTimeIds = 51:75;
+postRespTimeIds = 76:150;
+baseClustFalse = (sum(sigMatAll{4}(:,baseTimeIds),2)==0);
+audClustTrue = (sum(sigMatAll{1}(:,audTimeIds),2)>1);
+preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
+postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
+elecNameFeedBack_250 = elecNameAllTimePerm(baseClustFalse&audClustTrue...
+    &preRespClustFalse&postRespClustTrue);
 
 %% Selecting channels that are active only during response
 % baseline = 0, auditory epoch = 0, pre-response onset = 0 , post-response
@@ -215,11 +243,11 @@ baseTimeIds = 1:50;
 audTimeIds = 51:100;
 preRespTimeIds = 51:100;
 postRespTimeIds = 101:150;
-baseClustFalse = (sum(sigMatAllClean{1}(:,baseTimeIds),2)==0);
-audClustFalse = (sum(sigMatAllClean{1}(:,audTimeIds),2)==0);
-preRespClustFalse = (sum(sigMatAllClean{3}(:,preRespTimeIds),2)==0);
-postRespClustTrue = (sum(sigMatAllClean{3}(:,postRespTimeIds),2)>1);
-elecNameUtterActive = elecNameAllTimePermClean(baseClustFalse&audClustFalse...
+baseClustFalse = (sum(sigMatAll{1}(:,baseTimeIds),2)==0);
+audClustFalse = (sum(sigMatAll{1}(:,audTimeIds),2)==0);
+preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
+postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
+elecNameUtterActive = elecNameAllTimePerm(baseClustFalse&audClustFalse...
     &preRespClustFalse&postRespClustTrue);
 
 %% Significant activation channel ids for all fields

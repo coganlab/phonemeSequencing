@@ -19,22 +19,32 @@ Subject(subjectIds2remove) = [];
 
 %% Loading Normalized High-Gamma for an ROI and corresponding trialInfo
 
-selectRoi = '';
+% fieldEpoch = 'Auditory';
+ %selectRoi = {'temporal'};
+%selectRoi = {'supramarginal','inferiorparietal'};
+% selectRoi = {'orbital','opercula','triangular'};
+ %selectRoi = {'middlefrontal'};
+ %selectRoi = {'central'};
+ selectRoi = '';
 respTimeThresh = 0;
-timeEpoch = [-0.5000    2.0000;   -0.5000    1.0000;   -1.0000    1.5000];
+timeEpoch = [-0.5000    2.0000;   -0.5    0.5;   -1.0000    1.5];
 
 %trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
 
+% elecs2remove = elecNameFeedBack_000;
+% elecs2remove =  elecs2remove(~cellfun('isempty',elecs2remove));
+subSelectElecs = elecNameFeedBack_250_only;
+%subSelectElecs(ismember(subSelectElecs,elecs2remove)) = [];
 ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Auditory', roi = selectRoi,Time= timeEpoch(1,:),respTimeThresh=respTimeThresh,...
-    subsetElec=elecNameProductionClean,remWMchannels=true);
+    subsetElec=subSelectElecs,remWMchannels=true,normType=1);
 hgNormFactor = {ieegHGStructAuditory(:).normFactor};
 ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Go', roi = selectRoi, Time=timeEpoch(2,:),respTimeThresh=respTimeThresh,...
-    subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1);
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'ResponseStart', roi = selectRoi, Time=timeEpoch(3,:),respTimeThresh=respTimeThresh,...
-    subsetElec=elecNameProductionClean,normFactor=hgNormFactor,remWMchannels=true);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1);
 
 % Remove empty subjects
 emptyIds = [];
@@ -42,11 +52,16 @@ ieegHGStruct = ieegHGStructAuditory;
 trialInfoStruct = [];
 for iSubject = 1:length(Subject)
     if(isempty(ieegHGStruct(iSubject).ieegHGNorm))
+        trialInfoStruct(iSubject).phonemeTrial = [];
         emptyIds = [emptyIds iSubject];
     else
         ieegHGStruct(iSubject).ieegHGNorm.data = cat(3,ieegHGStructAuditory(iSubject).ieegHGNorm.data,...
             ieegHGStructGo(iSubject).ieegHGNorm.data,ieegHGStructResponse(iSubject).ieegHGNorm.data);
-        ieegHGStruct(iSubject).ieegHGNorm.name = ieegHGStruct(iSubject).ieegHGNorm.name + '_Go' + '_ResponseOnset';
+%          ieegHGStruct(iSubject).ieegHGNorm.data = cat(3,ieegHGStructAuditory(iSubject).ieegHGNorm.data,...
+%             ieegHGStructResponse(iSubject).ieegHGNorm.data);
+
+       ieegHGStruct(iSubject).ieegHGNorm.name = ieegHGStruct(iSubject).ieegHGNorm.name +  '_Go_ResponseOnset';
+       ieegHGStruct(iSubject).ieegHGNorm.tw = [0 sum(diff(timeEpoch'))]-0.5;
        trialInfoStruct(iSubject).phonemeTrial = phonemeSequenceTrialParser(ieegHGStruct(iSubject).trialInfo);   
     end
 
@@ -56,28 +71,44 @@ ieegHGStruct(emptyIds) = [];
 trialInfoStruct(emptyIds) = [];
 
 % Pooling across channels based on minimum trial matching
-[ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMinTrial(ieegHGStruct,trialInfoStruct);
-save(fullfile(['pooledSubject_' Task.Name '_' ...
+ [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMaxTrial(ieegHGStruct,trialInfoStruct);
+save(fullfile(['pooledSubject_' Task.Name '_feedback_250_only_zscore' ...
     '_stitch_prodelecs_data.mat']),...
     'ieegStructPooled','phonemeTrialPooled',...
-    'channelNamePooled','timeEpoch');
+    'channelNamePooled','timeEpoch','-v7.3');
 
 %% NNMF factor - averaged data
 
 ieegdatamean = squeeze(mean(ieegStructPooled.data,2));
-for iFactor = 1:10
+parfor iFactor = 1:30
     iFactor
-    for iRep = 1:20
-        [W,H,D(iFactor,iRep)] = nnmf(ieegdatamean,iFactor);
+    for iRep = 1:50
+        [W,H,D(iFactor,iRep)] = nnmf(ieegdatamean',iFactor);
     end
 end
 
 
-[W,H] = nnmf(ieegdatamean,5);
-figure; plot(H');
-[maxVal,maxId] = max(W');
-cfg.elec_colors = lines(5);
+[H,W] = nnmf(ieegdatamean',4);
+visTimePlot3_v2(timeEpoch,H');
+[maxVal,maxId] = max(W);
+cfg.elec_colors = lines(4);
 plot_subjs_on_average_grouping(channelNamePooled', maxId', 'fsaverage', cfg);
+
+for iFactor = 1:size(H,2)
+    ieegStructPooled = ieegStructPooledAll;
+    channelNamePooled = channelNamePooledAll;
+    for iChan = 1:length(channelNamePooled)
+        ieegStructPooled.data(iChan,:,:) = W(iFactor,iChan).*ieegStructPooled.data(iChan,:,:);
+    end
+    emptyChan = W(iFactor,:)==0;
+    ieegStructPooled.data(emptyChan,:,:) = [];
+    channelNamePooled(emptyChan) = [];
+    save(fullfile(['pooledSubject_' Task.Name '_factor_' num2str(iFactor) ...
+        '_stitch_prodelecs_data.mat']),...
+        'ieegStructPooled','phonemeTrialPooled',...
+        'channelNamePooled','timeEpoch','W','H');
+end
+
 
 %% NNMF factor - stretched data
 
