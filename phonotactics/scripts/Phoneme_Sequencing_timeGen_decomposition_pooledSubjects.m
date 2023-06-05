@@ -13,38 +13,38 @@ DUKEDIR=TASK_DIR;
 saveFolder = '\TempDecode\PooledSubjects\sensorimotor\syllable\';
 %% Loading data
 Subject = popTaskSubjectData(Task);
-subjectIds2remove = [1 27 31 37:length(Subject)];
+subjectIds2remove = [1 2 18 24 31 37:length(Subject)];
 % removing D18 because of large negative response trials
 Subject(subjectIds2remove) = [];
 
 %% Loading Normalized High-Gamma for an ROI and corresponding trialInfo
 
 % fieldEpoch = 'Auditory';
- %selectRoi = {'temporal'};
+% selectRoi = {'temporal','sts'};
 %selectRoi = {'supramarginal','inferiorparietal'};
-% selectRoi = {'orbital','opercula','triangular'};
+%selectRoi = {'opercula','triangular'};
  %selectRoi = {'middlefrontal'};
- %selectRoi = {'central'};
- selectRoi = '';
+selectRoi = {'central'};
+ %selectRoi = '';
 respTimeThresh = 0;
-timeEpoch = [-0.5000    2.0000;   -0.5    0.5;   -1.0000    1.5];
+timeEpoch = [-0.5000    1.5000;   -0.75    0.5;   -1.0000    1.5];
 
 %trialInfoStruct = extractTrialInfo(Subject, remFastResponseTimeTrials=respTimeThresh);
 
 % elecs2remove = elecNameFeedBack_000;
 % elecs2remove =  elecs2remove(~cellfun('isempty',elecs2remove));
-subSelectElecs = elecNameFeedBack_250_only;
+subSelectElecs = [auditoryMotorChannel motorChannel];
 %subSelectElecs(ismember(subSelectElecs,elecs2remove)) = [];
 ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Auditory', roi = selectRoi,Time= timeEpoch(1,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,remWMchannels=true,normType=1);
+    subsetElec=subSelectElecs,remWMchannels=true,normType=1,fDown = 200);
 hgNormFactor = {ieegHGStructAuditory(:).normFactor};
 ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Go', roi = selectRoi, Time=timeEpoch(2,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1,fDown = 200);
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'ResponseStart', roi = selectRoi, Time=timeEpoch(3,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1,fDown = 200);
 
 % Remove empty subjects
 emptyIds = [];
@@ -67,31 +67,122 @@ for iSubject = 1:length(Subject)
 
 end
 
+
 ieegHGStruct(emptyIds) = [];
 trialInfoStruct(emptyIds) = [];
 
 % Pooling across channels based on minimum trial matching
  [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMaxTrial(ieegHGStruct,trialInfoStruct);
-save(fullfile(['pooledSubject_' Task.Name '_feedback_250_only_zscore' ...
-    '_stitch_prodelecs_data.mat']),...
-    'ieegStructPooled','phonemeTrialPooled',...
-    'channelNamePooled','timeEpoch','-v7.3');
+% save(fullfile(['pooledSubject_' Task.Name '_motor_temporal_zscore' ...
+%     '_stitch_prodelecs_data.mat']),...
+%     'ieegStructPooled','phonemeTrialPooled',...
+%     'channelNamePooled','timeEpoch','-v7.3');
+
+%% Linear modeling
+
+cvcIds = find(phonemeTrialPooled.syllableUnit(:,1)'==2);
+
+p1=categorical(phonemeTrialPooled.phonemeUnit(:,1));
+p2=categorical(phonemeTrialPooled.phonemeUnit(:,2));
+p3=categorical(phonemeTrialPooled.phonemeUnit(:,3));
+syl = logical(phonemeTrialPooled.syllableUnit(:,1)-1);
+
+% p = 0:.5:1;
+% breaks = quantile(phonemeTrialPooled.phonotactic(cvcIds,6),p);
+% pfwd1 = ordinal(phonemeTrialPooled.phonotactic(cvcIds,6),{'Q1','Q2'},...
+%                    [],breaks);
+% 
+% breaks = quantile(phonemeTrialPooled.phonotactic(cvcIds,7),p);
+% pfwd2 = ordinal(phonemeTrialPooled.phonotactic(cvcIds,7),{'Q1','Q2'},...
+%                    [],breaks);
+% 
+% breaks = quantile(phonemeTrialPooled.phonotactic(cvcIds,8),p);
+% pbwd1 = ordinal(phonemeTrialPooled.phonotactic(cvcIds,8),{'Q1','Q2'},...
+%                    [],breaks);
+% 
+% breaks = quantile(phonemeTrialPooled.phonotactic(cvcIds,9),p);
+% pbwd2 = ordinal(phonemeTrialPooled.phonotactic(cvcIds,9),{'Q1','Q2'},...
+%                    [],breaks);
+
+% pfwd1 = phonemeTrialPooled.phonotactic(cvcIds,6);
+betas_cvc = [];
+Rsquared = [];
+dataSize = size(ieegStructPooled.data);
+beta_p1 = [];
+beta_p2 = [];
+beta_p3 = [];
+beta_syl = [];
+mseLoss = [];
+for iChan = 1:dataSize(1)
+    iChan
+    
+       parfor iTime = 1:dataSize(3) 
+            
+            hg = squeeze(ieegStructPooled.data(iChan,:,iTime))';
+            ieegdata = table(hg,p1,p2,p3,syl);
+            fit = fitrlinear(ieegdata,'hg~1+p1+p2+p3+syl','Lambda',0.001,...
+                'Regularization','ridge','KFold',10);
+%            fit = fitglm(ieegdata,'hg~p1+p2+p3+syl','Intercept',true,'Link','identity');
+            betas_temp = zeros(1,29);
+            for iFold = 1:length(fit.Trained)
+                betas_temp = betas_temp + (fit.Trained{iFold,1}.Beta)';
+            end
+            betas_chan = betas_temp./length(fit.Trained);
+%             length(betas_chan)
+            beta_p1(iChan,iTime) = norm(betas_chan(1:9));
+            beta_p2(iChan,iTime) = norm(betas_chan(10:18));
+            beta_p3(iChan,iTime) = norm(betas_chan(19:27));
+            beta_syl(iChan,iTime) = betas_chan(28);
+
+            mseLoss(iChan,iTime) = kfoldLoss(fit);
+            %betas(iChan,iTime,:) = fit.Beta;
+%             Rsquared(iChan,iTime,:) = fit.Rsquared.Adjusted;
+        end
+    
+end
+
+%% Visualize beta
+
+chan2look = find(max((mseLoss'))>3.5)
+
+
+for iChan = 1:length(chan2look)
+    H = [];
+H(1,:) = beta_p1(chan2look(iChan),:);
+H(2,:) = beta_p2(chan2look(iChan),:);
+H(3,:) = beta_p3(chan2look(iChan),:);
+
+
+visTimePlot3_v2(timeEpoch,H, smoothTime = 1);
+sgtitle(channelNamePooled(chan2look(iChan)))
+end
+%% Decoder model
+
+cTrials = phonemeTrialPooled.syllableUnit(:,1)'==1;
+vTrials = ~cTrials;
+
+phonemeUnits = phonemeTrialPooled.phonemeUnit(:,1)';
+dObj = decoderClass(20,[90],1);
+decodeResultStruct = dObj.baseClassify(ieegStructPooled,phonemeUnits, [3.25 4.25])
+
+
+
 
 %% NNMF factor - averaged data
 
 ieegdatamean = squeeze(mean(ieegStructPooled.data,2));
-parfor iFactor = 1:30
+for iFactor = 1:30
     iFactor
-    for iRep = 1:50
+    for iRep = 1:20
         [W,H,D(iFactor,iRep)] = nnmf(ieegdatamean',iFactor);
     end
 end
 
 
-[H,W] = nnmf(ieegdatamean',4);
+[H,W] = nnmf(ieegdatamean',5);
 visTimePlot3_v2(timeEpoch,H');
 [maxVal,maxId] = max(W);
-cfg.elec_colors = lines(4);
+cfg.elec_colors = lines(5);
 plot_subjs_on_average_grouping(channelNamePooled', maxId', 'fsaverage', cfg);
 
 for iFactor = 1:size(H,2)

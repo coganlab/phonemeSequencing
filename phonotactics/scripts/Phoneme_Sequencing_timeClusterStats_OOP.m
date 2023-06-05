@@ -42,7 +42,7 @@ Task.Conds(1).Field(4).Time=[-0.5 1];
 SNList=1:length(Subject);
 %%
 %SNList=7;
-for iSN=32
+for iSN=[31,37]
     SN=SNList(iSN);
     Trials=Subject(SN).Trials;
     counterN=0;

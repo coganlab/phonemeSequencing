@@ -35,8 +35,8 @@ Task.Conds(1).Field(4).Epoch='Start';
 Task.Conds(1).Field(4).Time=[-500 1000];
 
 Subject = popTaskSubjectData(Task);
-Subject=Subject([1:36]);
-Subject(24) = [];
+% Subject=Subject(1:36);
+% Subject(24) = [];
 %Subject=Subject([1,3,4,5,6,8:20,24:29]); % precental patients
 % badSubjs=[20];
 % Subject=Subject(setdiff(1:length(Subject),badSubs));
@@ -73,7 +73,8 @@ for iC=1:length(Task.Conds.Field)
         end
     end
 end
-%% loading all channels
+
+% loading all channels
 elecNameAllTimePerm = [];
  for iS=1:length(subjIdx)
         iS
@@ -87,6 +88,14 @@ elecNameAllTimePerm = [];
 %         end
         elecNameAllTimePerm= [elecNameAllTimePerm channelNames];
  end
+
+ emptyIds = cellfun(@isempty,elecNameAllTimePerm);
+ elecNameAllTimePerm(emptyIds) = [];
+ for iS=1:size(sigMatAll,2)
+    sigMatAll{iS}(emptyIds,:)=[];
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
  %% Loading anatomical information
  subj_labels_loc_all = [];
  subj_labels_Name_all = [];
@@ -99,156 +108,293 @@ elecNameAllTimePerm = [];
  emptyIds = cellfun(@isempty,subj_labels_Name_all);
  subj_labels_Name_all(emptyIds) = [];
  subj_labels_loc_all(emptyIds) = [];
-%% 
-% There is mismatch between number of channels in the previous and the
-% current section. Needs fixing
-WMidx=[];%zeros(length(sigMatAll{1}),1);
-counter=0;
-for iS=1:length(subjIdx);
-    WMidx(counter+1:length(Subject(subjIdx(iS)).goodChannels))=1;
-    WMvals=intersect(Subject(subjIdx(iS)).WM,Subject(subjIdx(iS)).goodChannels);
-    [ii jj]=intersect(Subject(subjIdx(iS)).goodChannels,WMvals);
-    WMidx(counter+1:counter+length(Subject(subjIdx(iS)).goodChannels))=0;
-    WMidx(counter+jj)=1;
-    counter=counter+length(Subject(subjIdx(iS)).goodChannels);
-end
 
-    elecNamesAll=[];
-    elecLocsAll=[];
-for iS=1:length(subjIdx)
-    elecNamesTmp=[];
-    elecLocsTmp=[];
-    for iChan=1:length(Subject(subjIdx(iS)).goodChannels)
-        elecNamesTmp{iChan}=Subject(subjIdx(iS)).ChannelInfo(Subject(subjIdx(iS)).goodChannels(iChan)).Name;
-        elecLocsTmp{iChan}=Subject(subjIdx(iS)).ChannelInfo(Subject(subjIdx(iS)).goodChannels(iChan)).Location;
-    end
-    if iS==1
-        elecNamesAll=elecNamesTmp;
-        elecLocsAll=elecLocsTmp;
-    else
-        elecNamesAll=cat(2,elecNamesAll,elecNamesTmp);
-        elecLocsAll=cat(2,elecLocsAll,elecLocsTmp);
-    end
-end
-%%
-% kluge!
-noNameChans=[];
-counter=0;
-for iChan=1:length(elecNameAllTimePerm)
-    if isempty(elecNameAllTimePerm{iChan});
-        noNameChans(counter+1)=iChan;
-        counter=counter+1;
-    end
-end
-
-% load muscle artifact channels
-counter=0;
-muscleChannelsAll=[];
-
+%% Loading Muscle Channels
+muscleChannelsAll = []
 for iSN=1:length(Subject);
-    load([DUKEDIR '/' Subject(iSN).Name '/muscleChannels.mat'])
-    muscleChannels=muscleChannels+counter;
-    muscleChannelsAll=cat(2,muscleChannelsAll,muscleChannels);
-    counter=counter+length(Subject(iSN).goodChannels);
+    Subject(iSN).Name
+    if exist([DUKEDIR '/' Subject(iSN).Name '/muscleChannelWavelet.mat'])
+     load([DUKEDIR '/' Subject(iSN).Name '/muscleChannelWavelet.mat'])
+     try
+        muscleChannelsAll=cat(2,muscleChannelsAll,(muscleChannel));
+     catch
+        muscleChannelsAll=cat(2,muscleChannelsAll,(muscleChannel)');
+     end
+    end
+ %   muscleChannels=muscleChannels+counter;
+%     muscleChannelsAll=cat(2,muscleChannelsAll,muscleChannels);
+%     counter=counter+length(Subject(iSN).goodChannels);
 end
-%% Removing null and noisy channels
-noNameChans=cat(2,noNameChans,muscleChannelsAll);
-sigMatAllClean = sigMatAll;
-for iS=1:size(sigMatAllClean,2);
-    sigMatAllClean{iS}(noNameChans,:)=[];
+muscleChannelsAll =  muscleChannelsAll(~cellfun('isempty',muscleChannelsAll));
+%% Removing Unknown & muscle channels
+% 
+
+muscleChannelIds = ismember(elecNameAllTimePerm,muscleChannelsAll);
+unknownChannels = subj_labels_Name_all(contains(subj_labels_loc_all,'Unknown'));
+unknownChannelIds = ismember(elecNameAllTimePerm,unknownChannels);
+elecNameAllTimePermClean =  elecNameAllTimePerm(~(muscleChannelIds|unknownChannelIds));
+for iS=1:size(sigMatAll,2)
+    iS
+    sigMatClean{iS}=sigMatAll{iS}(~(muscleChannelIds|unknownChannelIds),:);
     %sigPowerAll{iS}(noNameChans,:)=[];
 end
-elecNameAllTimePermClean = elecNameAllTimePerm;
-elecNameAllTimePermClean(noNameChans)=[];
-elecAnatAllTimePermClean = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameAllTimePermClean));
-temporalIds = contains(elecAnatAllTimePermClean,'temporal');
-%elecLocsAll(noNameChans)=[];
-% WMidx(noNameChans)=[];
-% iiNWM=find(WMidx==0);
-% iiW=find(WMidx==1);
-
-%% Selecting auditory ids
-% audTimeIds = 51:100;
-% baseTimeIds = 1:50;
-% 
-% iiAE=(sum(sigMatAllClean{1}(:,audTimeIds),2)>1);
-% iiB = (sum(sigMatAllClean{1}(:,baseTimeIds),2)==0);
-% numAudChan(1) = sum(iiAE&iiB);
-% figure; imagesc(sigMatAllClean{1}(iiAE&iiB,:));
-% for iPer = 2:10
-%     iiAE=(sum(sigMatAllClean{1}(:,audTimeIds),2)>length(audTimeIds)*iPer/10);
-%     figure; imagesc(sigMatAllClean{1}(iiAE&iiB,:));
-%     title([num2str(iPer*100/10) ' % fraction of time activated'])
-%     numAudChan(iPer) = sum(iiAE&iiB);
-% end
-
-%% Selecting channels that are production, feedback, muscle
-% Production baseline = 0, response onset = 1
-% Feedback baseline = 0, auditory epoch = 1, pre-response onset = 0 , post-response onset = 1
-baseTimeIds = 1:50;
-audTimeIds = 51:100;
-respTimeIds = 51:150;
-preRespTimeIds = 51:100;
-postRespTimeIds = 101:150;
-
-baseClustFalse = (sum(sigMatAll{4}(:,baseTimeIds),2)==0);
-audBaseClustFalse = (sum(sigMatAll{1}(:,baseTimeIds),2)==0);
-audClustTrue = (sum(sigMatAll{1}(:,audTimeIds),2)>1);
-preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
-postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
-respClustTrue = (sum(sigMatAll{3}(:,respTimeIds),2)>1);
-
-elecNameProduction = elecNameAllTimePerm(baseClustFalse...
-    &respClustTrue);
-elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
-elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audClustTrue...
-    &preRespClustFalse&postRespClustTrue);
-elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
-
-feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack);
-elecNameProductionClean = elecNameProduction;
-elecNameProductionClean(feedbackChannelIds) = [];
-
-
-elecNameProduction = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse...
-    &respClustTrue);
-elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
-elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse&audClustTrue...
-    &preRespClustFalse&postRespClustTrue);
-elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
-
-feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack);
-elecNameProductionCleanAudBase = elecNameProduction;
-elecNameProductionCleanAudBase(feedbackChannelIds) = [];
 
 
 %% Selecting channels that are feedback
 % baseline = 0, auditory epoch = 1, pre-response onset = 0 , post-response
 % onset = 1
+timeAuditory = linspace(-0.5,1.5,200);
+timeResponse = linspace(-1,1,200);
 baseTimeIds = 1:50;
-audTimeIds = 51:100;
-preRespTimeIds = 51:75;
-postRespTimeIds = 76:150;
-baseClustFalse = (sum(sigMatAll{4}(:,baseTimeIds),2)==0);
-audClustTrue = (sum(sigMatAll{1}(:,audTimeIds),2)>1);
-preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
-postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
-elecNameFeedBack_250 = elecNameAllTimePerm(baseClustFalse&audClustTrue...
-    &preRespClustFalse&postRespClustTrue);
+audTimeIds = timeAuditory>0&timeAuditory<0.2;
+preRespTimeIds = timeResponse>-0.5&timeResponse<-0.1;
+postRespTimeIds = timeResponse>=-0.1;
+baseClustFalse = (sum(sigMatClean{4}(:,baseTimeIds),2)==0);
+audClustTrue = (sum(sigMatClean{1}(:,audTimeIds),2)>1);
+preRespClustFalse = (sum(sigMatClean{3}(:,preRespTimeIds),2)==0);
+postRespClustTrue = (sum(sigMatClean{3}(:,postRespTimeIds),2)>1);
+feedbackCond = baseClustFalse&audClustTrue...
+    &preRespClustFalse&postRespClustTrue;
+elecNameFeedBack_100 = elecNameAllTimePermClean(feedbackCond);
+elecNameFeedBack_100 =  elecNameFeedBack_100(~cellfun('isempty',elecNameFeedBack_100));
 
-%% Selecting channels that are active only during response
-% baseline = 0, auditory epoch = 0, pre-response onset = 0 , post-response
-% onset = 1
+elecAnatFeedBack_100 = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameFeedBack_100));
+anat2select = ["temporal","White","sts"];
+elecNameFeedBack_100_temporal = elecNameFeedBack_100(contains(elecAnatFeedBack_100,anat2select));
+
+
+for iS=1:size(sigMatClean,2)
+    sigMatFeedbackTemporal{iS}=sigMatClean{iS}(ismember(elecNameAllTimePermClean,elecNameFeedBack_100),:);
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
+figure;
+subplot(1,2,1)
+imagesc(timeAuditory,[],sigMatFeedbackTemporal{1});
+xlabel('Time from Auditory onset (s)');
+subplot(1,2,2)
+imagesc(timeResponse,[],sigMatFeedbackTemporal{3});
+xlabel('Time from Response onset (s)');
+sgtitle('Feedback channels')
+
+
+
+
+%% Selecting channels that are production, feedback, muscle
+% Production baseline = 0, response onset = 1
+% Feedback baseline = 0, auditory epoch = 1, pre-response onset = 0 , post-response onset = 1
 baseTimeIds = 1:50;
-audTimeIds = 51:100;
-preRespTimeIds = 51:100;
-postRespTimeIds = 101:150;
-baseClustFalse = (sum(sigMatAll{1}(:,baseTimeIds),2)==0);
-audClustFalse = (sum(sigMatAll{1}(:,audTimeIds),2)==0);
-preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
-postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
-elecNameUtterActive = elecNameAllTimePerm(baseClustFalse&audClustFalse...
-    &preRespClustFalse&postRespClustTrue);
+audTimeIds = find(timeAuditory>0&timeAuditory<0.2);
+respTimeIds = timeResponse>-0.5&timeResponse<0.5;
+preRespTimeIds = find(timeResponse>-0.5&timeResponse<-0.1);
+postRespTimeIds = find(timeResponse>-0.1&timeResponse<0.5);
+
+baseClustFalse = (sum(sigMatClean{4}(:,baseTimeIds),2)==0);
+audBaseClustFalse = (sum(sigMatClean{1}(:,baseTimeIds),2)==0);
+audClustTrue = (sum(sigMatClean{1}(:,audTimeIds),2)>1);
+audClustFalse = (sum(sigMatClean{1}(:,audTimeIds),2)==0);
+% preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
+% postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
+respClustTrue = (sum(sigMatClean{3}(:,respTimeIds),2)>1);
+
+elecNameAudTrueProdTrue = elecNameAllTimePermClean(baseClustFalse&...
+    audClustTrue&respClustTrue);
+elecNameAudTrueProdTrue =  elecNameAudTrueProdTrue(~cellfun('isempty',elecNameAudTrueProdTrue));
+%elecNameAudTrueProdTrueExcludeMuscle = elecNameAudTrueProdTrue(~ismember(elecNameAudTrueProdTrue,muscleChannelsAll));
+elecNameAudTrueProdTrueExcludeFeedback = elecNameAudTrueProdTrue(~ismember(elecNameAudTrueProdTrue,elecNameFeedBack_100));
+
+tempLobeAnat2select = ["parahippocampal","fusiform","entorhinal","Cerebellum","lingual","Ventricle"];
+elecAnatAudTrueProdTrueExcludeFeedback = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameAudTrueProdTrueExcludeFeedback));
+temporalLobeChannels = contains(elecAnatAudTrueProdTrueExcludeFeedback,tempLobeAnat2select);
+%elecNameAudTrueProdTrueNoTemporalLobe = elecNameAudTrueProdTrueExcludeFeedback(~temporalLobeChannels);
+
+
+
+for iS=1:size(sigMatClean,2)
+    sigMatAudTrueProdTrueNoFeedback{iS}=sigMatClean{iS}(ismember(elecNameAllTimePermClean,elecNameAudTrueProdTrueExcludeFeedback),:);
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
+figure;
+subplot(1,2,1)
+imagesc(timeAuditory,[],sigMatAudTrueProdTrueNoFeedback{1});
+xlabel('Time from Auditory onset (s)');
+subplot(1,2,2)
+imagesc(timeResponse,[],sigMatAudTrueProdTrueNoFeedback{3});
+xlabel('Time from Response onset (s)');
+sgtitle('Auditory True + Production true (No feedback)')
+
+
+% elecAnatAudTrueProdTrueExcludeMuscleExcludeFeedback = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameAudTrueProdTrueExcludeMuscleExcludeFeedback));
+% elecNameAudTrueProdTrueTemporal = elecNameAudTrueProdTrueExcludeMuscle(contains(elecAnatAudTrueProdTrueExcludeMuscleExcludeFeedback,'temporal'));
+% 
+% for iS=1:size(sigMatAll,2)
+%     sigMatFeedbackAudTrueProdTrueTemporal{iS}=sigMatAll{iS}(ismember(elecNameAllTimePerm,elecNameAudTrueProdTrueTemporal),:);
+%     %sigPowerAll{iS}(noNameChans,:)=[];
+% end
+% 
+% figure;
+% subplot(1,2,1)
+% imagesc(timeAuditory,[],sigMatFeedbackAudTrueProdTrueTemporal{1});
+% xlabel('Time from Auditory onset (s)');
+% subplot(1,2,2)
+% imagesc(timeResponse,[],sigMatFeedbackAudTrueProdTrueTemporal{3});
+% xlabel('Time from Response onset (s)');
+% sgtitle('Auditory True + Production true (Temporal)')
+% 
+% preRespTimeFeedbackIds = find(timeResponse<=-0.1);
+% postRespTimeFeedbackIds = find(timeResponse>-0.1);
+% elecNameAudTrueProdTrueTemporalFeedback = elecNameAudTrueProdTrueTemporal(sum(sigMatFeedbackAudTrueProdTrueTemporal{3}(:,preRespTimeIds),2)==0&sum(sigMatFeedbackAudTrueProdTrueTemporal{3}(:,postRespTimeIds),2)>1)';
+% 
+
+
+% sigDiff = (diff(sigMatFeedbackAudTrueProdTrueTemporal{3}'));
+% for iChan = 1:size(sigDiff,2)
+%     respOnsId = find(sigDiff(:,iChan)==1,1);
+%     if(isempty(respOnsId))
+%         respOnsId = 1;
+%     end
+%     respOnsAudTrueTemporal(iChan) = timeResponse(respOnsId);
+% end
+
+
+
+%%
+
+
+% elecAnatAudTrueProdTrue = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameAudTrueProdTrue));
+% 
+% elecNameAudTrueProdTrueTemporal = elecNameAudTrueProdTrue(contains(elecAnatAudTrueProdTrue,'temporal'));
+% elecNameAudTrueProdTrueTemporalExcludeFeedback = elecNameAudTrueProdTrueTemporal(~ismember(elecNameAudTrueProdTrueTemporal,elecNameFeedBack_100));
+
+
+elecNameAudFalseProdTrue = elecNameAllTimePermClean(baseClustFalse&...
+    audClustFalse&respClustTrue);
+elecNameAudFalseProdTrue =  elecNameAudFalseProdTrue(~cellfun('isempty',elecNameAudFalseProdTrue));
+%elecNameAudFalseProdTrueExcludeMuscle = elecNameAudFalseProdTrue(~ismember(elecNameAudFalseProdTrue,muscleChannelsAll));
+
+for iS=1:size(sigMatClean,2)
+    sigMatFeedbackAudFalseProdTrue{iS}=sigMatClean{iS}(ismember(elecNameAllTimePermClean,elecNameAudFalseProdTrue),:);
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
+figure;
+subplot(1,2,1)
+imagesc(timeAuditory,[],sigMatFeedbackAudFalseProdTrue{1});
+xlabel('Time from Auditory onset (s)');
+subplot(1,2,2)
+imagesc(timeResponse,[],sigMatFeedbackAudFalseProdTrue{3});
+xlabel('Time from Response onset (s)');
+sgtitle('Auditory False + Production true ')
+
+
+
+elecAnatAudFalseProdTrue = subj_labels_loc_all(ismember(subj_labels_Name_all,elecNameAudFalseProdTrue));
+
+tempAnat2select = ["temporal","sts"];
+temporalChannels = contains(elecAnatAudFalseProdTrue,tempAnat2select);
+tempLobeAnat2select = ["Hippocampus","Amygdala","parahippocampal","fusiform","entorhinal","Cerebellum","lingual","Ventricle"];
+temporalLobeChannels = contains(elecAnatAudFalseProdTrue,tempLobeAnat2select);
+
+elecNameAudFalseProdTrueTemporal = elecNameAudFalseProdTrue(temporalChannels|temporalLobeChannels);
+
+for iS=1:size(sigMatClean,2)
+    sigMatFeedbackAudFalseProdTrueTemporal{iS}=sigMatClean{iS}(ismember(elecNameAllTimePermClean,elecNameAudFalseProdTrueTemporal),:);
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
+figure;
+subplot(1,2,1)
+imagesc(timeAuditory,[],sigMatFeedbackAudFalseProdTrueTemporal{1});
+xlabel('Time from Auditory onset (s)');
+subplot(1,2,2)
+imagesc(timeResponse,[],sigMatFeedbackAudFalseProdTrueTemporal{3});
+xlabel('Time from Response onset (s)');
+sgtitle('Auditory False + Production true (only temporal)')
+
+
+sigDiff = (diff(sigMatFeedbackAudFalseProdTrueTemporal{3}'));
+for iChan = 1:size(sigDiff,2)
+    respOnsId = find(sigDiff(:,iChan)==1,1);
+    respOns(iChan) = timeResponse(respOnsId);
+end
+
+
+elecNameAudFalseProdTrueNoTemporal = elecNameAudFalseProdTrue(~(temporalChannels|temporalLobeChannels));
+
+for iS=1:size(sigMatClean,2)
+    sigMatFeedbackAudFalseProdTrueNoTemporal{iS}=sigMatClean{iS}(ismember(elecNameAllTimePermClean,elecNameAudFalseProdTrueNoTemporal),:);
+    %sigPowerAll{iS}(noNameChans,:)=[];
+end
+
+figure;
+subplot(1,2,1)
+imagesc(timeAuditory,[],sigMatFeedbackAudFalseProdTrueNoTemporal{1});
+xlabel('Time from Auditory onset (s)');
+subplot(1,2,2)
+imagesc(timeResponse,[],sigMatFeedbackAudFalseProdTrueNoTemporal{3});
+xlabel('Time from Response onset (s)');
+sgtitle('Auditory False + Production true (Temporal Excluded) ')
+
+motorChannel = elecNameAudFalseProdTrueNoTemporal;
+
+motorAnat = subj_labels_loc_all(ismember(subj_labels_Name_all,motorChannel));
+motorChannelGM = motorChannel(~contains(motorAnat,'White'));
+
+%elecNameAudFalseProdTrueTemporalExcludeMuscle = elecNameAudFalseProdTrueTemporal(~ismember(elecNameAudFalseProdTrueTemporal,muscleChannelsAll));
+
+% elecNameAudFalseProdTrueFrontal = elecNameAudFalseProdTrue(contains(elecAnatAudFalseProdTrue,'frontal'));
+% elecNameAudFalseProdTrueFrontalExcludeMuscle = elecNameAudFalseProdTrueFrontal(~ismember(elecNameAudFalseProdTrueFrontal,muscleChannelsAll));
+% elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audClustTrue...
+%     &preRespClustFalse&postRespClustTrue);
+% elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
+
+% feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack_100);
+% muscleChannelIds = ismember(elecNameProduction,muscleChannelsAll);
+% elecNameProductionClean = elecNameProduction;
+% elecNameProductionClean(feedbackChannelIds|muscleChannelIds) = [];
+
+
+%% Selecting channels that are production, feedback, muscle
+% Production baseline = 0, response onset = 1
+% Feedback baseline = 0, auditory epoch = 1, pre-response onset = 0 , post-response onset = 1
+baseTimeIds = 1:50;
+
+respTimeIds = find(timeResponse>-0.5&timeResponse<0.5);
+
+
+baseClustFalse = (sum(sigMatAll{4}(:,baseTimeIds),2)==0);
+
+% preRespClustFalse = (sum(sigMatAll{3}(:,preRespTimeIds),2)==0);
+% postRespClustTrue = (sum(sigMatAll{3}(:,postRespTimeIds),2)>1);
+respClustTrue = (sum(sigMatAll{3}(:,respTimeIds),2)>1);
+
+elecNameProduction = elecNameAllTimePerm(baseClustFalse...
+    &respClustTrue);
+elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
+% elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audClustTrue...
+%     &preRespClustFalse&postRespClustTrue);
+% elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
+
+feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack_100_temporal);
+muscleChannelIds = ismember(elecNameProduction,muscleChannelsAll);
+temporalChannelAudTrueProdTrueIds = ismember(elecNameProduction,elecNameAudTrueProdTrueTemporal);
+temporalChannelAudFalseProdTrueIds = ismember(elecNameProduction,elecNameAudFalseProdTrueTemporal);
+elecNameProductionClean = elecNameProduction;
+elecNameProductionClean(feedbackChannelIds|muscleChannelIds|temporalChannelAudTrueProdTrueIds|temporalChannelAudFalseProdTrueIds) = [];
+
+
+% elecNameProduction = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse...
+%     &respClustTrue);
+% elecNameProduction =  elecNameProduction(~cellfun('isempty',elecNameProduction));
+% elecNameFeedBack = elecNameAllTimePerm(baseClustFalse&audBaseClustFalse&audClustTrue...
+%     &preRespClustFalse&postRespClustTrue);
+% elecNameFeedBack =  elecNameFeedBack(~cellfun('isempty',elecNameFeedBack));
+% 
+% feedbackChannelIds = ismember(elecNameProduction,elecNameFeedBack);
+% elecNameProductionCleanAudBase = elecNameProduction;
+% elecNameProductionCleanAudBase(feedbackChannelIds) = [];
+
 
 %% Significant activation channel ids for all fields
 
