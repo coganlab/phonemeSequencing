@@ -15,7 +15,7 @@ fsDown = 200;
 % chanMap = (chanMap');
 % selectedChannels = sort(chanMap(~isnan(chanMap)))';
 %% data Loading
-subjectId = 'S22';
+subjectId = 'S14';
 iPhon = 1
 Experiment = loadExperiment(subjectId);
 chanMap = Experiment.recording.channel_map;
@@ -81,8 +81,20 @@ rPhonemeUnits = phonemeUnits(rTrials);
 
 %% decoder object
 load([subjectId '_sigChannel.mat'])
-dObj = decoderClass(20,[10:10:90]);
-decodeResultStruct = dObj.baseClassify(ieegHGRespNorm,phonemeUnits, [-0.25 0.25], sigChannel)
+dObj = decoderClass(20,80,1);
+% ifgChan = [16 12 126 122 105 104 114 108 5 62 37 11 21 48 63 8];
+%  ifgChanFp =    [124 101 106 111 100 102 20 22 7 24 9 30 39 46 50 6 61 31 55 70 69 77 68 81 82 72];
+% smcChan = setdiff(sigChannel,[ifgChan ifgChanFp]);
+decodeResultStruct = dObj.baseClassify(ieegHGRespNorm,phonemeUnits, [-0.5 0.5], sigChannel)
+
+
+% channels2plot = zeros(1,256);
+% channels2plot(ifgChan) = 1;
+% channels2plot(smcChan) = 2;
+% figure; chanView(channels2plot,chanMap2,"cval",[0 2]); formatTicks(gca); axis equal
+% set(gca,'YTick',[])
+% set(gca,'XTick',[])
+% title('');
 % decodeTimeStruct1 = dObj.tempGenClassify1D(ieegHGRespNorm,phonemeTrial.phonemeUnit(:,1)',0.01,0.2,sigChannel);
 % decodeTimeStruct2 = dObj.tempGenClassify1D(ieegHGRespNorm,phonemeTrial.phonemeUnit(:,2)',0.01,0.2,sigChannel);
 % decodeTimeStruct3 = dObj.tempGenClassify1D(ieegHGRespNorm,phonemeTrial.phonemeUnit(:,3)',0.01,0.2,sigChannel);
@@ -153,26 +165,30 @@ totalDist = 120;
 accDist = [];
 phonErrorDist = [];
 
-
+sulcusChannels2Remove = [71 67 115 75 121 51 117 29 63 27 58 46 44 35 62 23 112 109];
+chanMapSig = chanMap;
+chanMapSig(ismember(chanMap(:),sulcusChannels2Remove)) = nan;
 numSamp = [];
 for iDist = 1:totalDist
     elecSampDensity = firstElec+(iDist-1)*firstElec(1);
     iDist
-    for iSamp = 1:round(nSamp*(totalDist/iDist))
-        
-        elecSampClose = elecSampDensity;
-         nElec = round((elecSampClose(1) + (elecSampClose(2)-elecSampClose(1)) .* rand(1,1))*length(selectedChannels));
-         %elecPtIds = round(poissonDisc([8,16],poisSpace,nElec));
-         elecPtIds = ceil(poissonDisc2(size(chanMap),nElec));
-            
-
+    parfor iSamp = 1:round(nSamp*(totalDist/iDist))
         elecPt = [];
-        for iElec = 1:size(elecPtIds,1)
-            elecPt(iElec) = chanMap(elecPtIds(iElec,1),elecPtIds(iElec,2));
+        while(isempty(elecPt))
+            elecSampClose = elecSampDensity;
+             nElec = round((elecSampClose(1) + (elecSampClose(2)-elecSampClose(1)) .* rand(1,1))*length(selectedChannels));
+             %elecPtIds = round(poissonDisc([8,16],poisSpace,nElec));
+             elecPtIds = ceil(poissonDisc2(size(chanMap),nElec));
+                
+    
+            elecPt = [];
+            for iElec = 1:size(elecPtIds,1)
+                elecPt(iElec) = chanMapSig(elecPtIds(iElec,1),elecPtIds(iElec,2));
+            end
+            elecPt = elecPt(~isnan(elecPt)); 
         end
-        elecPt = elecPt(~isnan(elecPt)); 
         elecPtcm = ismember(selectedChannels,elecPt);
-        dObj = decoderClass(20,[80]);
+        dObj = decoderClass(10,[80],1);
         decodeResultStruct = dObj.baseClassify(ieegHGRespNorm,phonemeUnits, [-0.5 0.5], find(elecPtcm));       
         accDist = [accDist decodeResultStruct.accPhoneme];
 %         dObj = decoderClass(20,[80]);
@@ -183,8 +199,8 @@ for iDist = 1:totalDist
 %         accDistVowel = [accDistVowel decodeResultStruct.accPhoneme];
         numSamp = [numSamp sum(elecPtcm)];
     end
-    sum(elecPtcm)
-    save([subjectId '_PhonemeDecodeHighRes_' num2str(iPhon)  '_Phoneme_v1.mat'],'accDist', 'numSamp');   
+    
+    save([subjectId '_PhonemeDecodeHighRes_' num2str(iPhon)  '_Phoneme_no_sulcus_v2.mat'],'accDist', 'numSamp');   
 end
 
 %% Poisson disc sampling - N-way
