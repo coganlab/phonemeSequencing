@@ -34,7 +34,7 @@ Task.Conds(1).Field(2).Epoch='ResponseStart';
 Task.Conds(1).Field(2).Time=[-1 1.5];
 timePad = 0.5;
 %%
-for iSubject=[34]
+for iSubject=[31]
      
     Subject(iSubject).Name
     Trials=Subject(iSubject).Trials;
@@ -64,7 +64,7 @@ for iSubject=[34]
     % prodDelayElecs is loaded from the mat file in 'forKumar'
     % Come up with automated way to parse necessary channels
     
-    channelName = {Subject(iSubject).Experiment.channels.name};
+    channelName = {Subject(iSubject).ChannelInfo.Name};
     channelName = channelName(chanIdx);
     channelName(cellfun(@isempty,channelName)) = {'noName'};
     
@@ -169,6 +169,7 @@ for iSubject=[34]
                 iChan2              
                 waveSpecField = getWaveletScalogram(data2spec(iChan2,:,:),fs,fHigh=1000);
                 %tvimage(sq((Auditory_nSpec([1],iChan2,:,1:200))),'XRange',[-0.5,1]);
+                %imagesc(tspec,[],20.*log10(sq(specMean)'))
                 specChanMap(waveSpecField.spec,[],1,[],fieldTimeExtract,[-1.5 -1],[-0.25 0.25],[1 500],[70 150],[-2 2],1,meanFreqChanOut(iChan2,:));
                 set(gca,'YTick',1:10:length(waveSpecField.fscale));
                 set(gca,'YTickLabels',round(waveSpecField.fscale(1:10:end)));
