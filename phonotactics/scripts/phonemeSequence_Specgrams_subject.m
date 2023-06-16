@@ -59,7 +59,7 @@ for iSubject=32
     channelName = {Subject(iSubject).ChannelInfo.Name};
     channelName(cellfun(@isempty,channelName)) = {'dummy'};
     channelName = channelName(chanIdx);
-    [~,delayChan] = intersect(channelName,channelResponseOnlyTemporal_Prod_only); 
+    [~,delayChan] = intersect(channelName,elecNameProductionGM); 
    
     chan2select = intersect(find(anatChan),delayChan);
 

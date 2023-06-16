@@ -13,9 +13,9 @@ DUKEDIR=TASK_DIR;
 saveFolder = '\TempDecode\PooledSubjects\sensorimotor\syllable\';
 %% Loading data
 Subject = popTaskSubjectData(Task);
-subjectIds2remove = [1 2 18 24 31 37:length(Subject)];
-% removing D18 because of large negative response trials
-Subject(subjectIds2remove) = [];
+% subjectIds2remove = [1 2 18 24 31 37:length(Subject)];
+% % removing D18 because of large negative response trials
+% Subject(subjectIds2remove) = [];
 
 %% Loading Normalized High-Gamma for an ROI and corresponding trialInfo
 
@@ -33,18 +33,18 @@ timeEpoch = [-0.5000    1.5000;   -0.75    0.5;   -1.0000    1.5];
 
 % elecs2remove = elecNameFeedBack_000;
 % elecs2remove =  elecs2remove(~cellfun('isempty',elecs2remove));
-subSelectElecs = [auditoryMotorChannel motorChannel];
+subSelectElecs = elecNameProduction;
 %subSelectElecs(ismember(subSelectElecs,elecs2remove)) = [];
 ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Auditory', roi = selectRoi,Time= timeEpoch(1,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,remWMchannels=true,normType=1,fDown = 200);
+    subsetElec=subSelectElecs,remWMchannels=true,normType=2,fDown = 200);
 hgNormFactor = {ieegHGStructAuditory(:).normFactor};
 ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'Go', roi = selectRoi, Time=timeEpoch(2,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1,fDown = 200);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=2,fDown = 200);
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'ResponseStart', roi = selectRoi, Time=timeEpoch(3,:),respTimeThresh=respTimeThresh,...
-    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=1,fDown = 200);
+    subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=2,fDown = 200);
 
 % Remove empty subjects
 emptyIds = [];
@@ -158,14 +158,26 @@ sgtitle(channelNamePooled(chan2look(iChan)))
 end
 %% Decoder model
 
-cTrials = phonemeTrialPooled.syllableUnit(:,1)'==1;
-vTrials = ~cTrials;
-
+vTrials = phonemeTrialPooled.syllableUnit(:,1)'==1;
+cTrials = ~vTrials;
+% phoneme decoder
 phonemeUnits = phonemeTrialPooled.phonemeUnit(:,1)';
-dObj = decoderClass(20,[90],1);
-decodeResultStruct = dObj.baseClassify(ieegStructPooled,phonemeUnits, [3.25 4.25])
+phonemeClass = phonemeTrialPooled.phonemeClass(:,1)';
 
+dObj = decoderClass(20,[10:10:90],1);
+decodeResultStruct = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [3.25 4])
 
+% consonant decoder
+dObj = decoderClass(20,[10:10:90],1);
+decodeResultStructConsonant = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [3.25 4],selectTrial=find(cTrials))
+
+% vowel decoder
+dObj = decoderClass(20,[10:10:90],1);
+decodeResultStructVowel = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [3.25 4],selectTrial=find(vTrials))
+
+% articulator decoder
+dObj = decoderClass(20,[10:10:90],1);
+decodeResultStructArticulator = dObj.baseClassify(ieegStructPooled,phonemeClass, d_time_window = [3.25 4])
 
 
 %% NNMF factor - averaged data

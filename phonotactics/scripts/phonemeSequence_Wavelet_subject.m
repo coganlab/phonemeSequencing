@@ -34,7 +34,7 @@ Task.Conds(1).Field(2).Epoch='ResponseStart';
 Task.Conds(1).Field(2).Time=[-1 1.5];
 timePad = 0.5;
 %%
-for iSubject=[31]
+for iSubject=[42]
      
     Subject(iSubject).Name
     Trials=Subject(iSubject).Trials;
