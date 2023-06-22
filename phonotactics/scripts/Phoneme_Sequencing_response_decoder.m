@@ -25,7 +25,7 @@ Subject = popTaskSubjectData(Task);
 %selectRoi = {'opercula','triangular'};
 % selectRoi = {'middlefrontal'};
 %selectRoi = {'central'};
- %selectRoi = '';
+ selectRoi = '';
 respTimeThresh = 0.05;
 timeEpoch = [-1.0000    1.5];
 
@@ -34,14 +34,7 @@ timeEpoch = [-1.0000    1.5];
 % elecs2remove = elecNameFeedBack_000;
 % elecs2remove =  elecs2remove(~cellfun('isempty',elecs2remove));
 subSelectElecs = elecNameProductionClean;
-%subSelectElecs(ismember(subSelectElecs,elecs2remove)) = [];
-% ieegHGStructAuditory = extractHGDataWithROI(Subject,baseName = 'Start',...
-%     Epoch = 'Auditory', roi = selectRoi,Time= timeEpoch(1,:),respTimeThresh=respTimeThresh,...
-%     subsetElec=subSelectElecs,remWMchannels=true,normType=2,fDown = 200);
-% hgNormFactor = {ieegHGStructAuditory(:).normFactor};
-% ieegHGStructGo = extractHGDataWithROI(Subject,baseName = 'Start',...
-%     Epoch = 'Go', roi = selectRoi, Time=timeEpoch(2,:),respTimeThresh=respTimeThresh,...
-%     subsetElec=subSelectElecs,normFactor=hgNormFactor,remWMchannels=true,normType=2,fDown = 200);
+
 ieegHGStructResponse = extractHGDataWithROI(Subject,baseName = 'Start',...
     Epoch = 'ResponseStart', roi = selectRoi, Time=timeEpoch,respTimeThresh=respTimeThresh,...
     subsetElec=subSelectElecs,remWMchannels=true,normType=1,fDown = 200);
@@ -55,56 +48,63 @@ for iSubject = 1:length(Subject)
         trialInfoStruct(iSubject).phonemeTrial = [];
         emptyIds = [emptyIds iSubject];
     else
-%         ieegHGStruct(iSubject).ieegHGNorm.data = cat(3,ieegHGStructAuditory(iSubject).ieegHGNorm.data,...
-%             ieegHGStructGo(iSubject).ieegHGNorm.data,ieegHGStructResponse(iSubject).ieegHGNorm.data);
-%          ieegHGStruct(iSubject).ieegHGNorm.data = cat(3,ieegHGStructAuditory(iSubject).ieegHGNorm.data,...
-%             ieegHGStructResponse(iSubject).ieegHGNorm.data);
-% 
-%        ieegHGStruct(iSubject).ieegHGNorm.name = ieegHGStruct(iSubject).ieegHGNorm.name +  '_Go_ResponseOnset';
-%        ieegHGStruct(iSubject).ieegHGNorm.tw = [0 sum(diff(timeEpoch'))]-0.5;
-       trialInfoStruct(iSubject).phonemeTrial = phonemeSequenceTrialParser(ieegHGStructResponse(iSubject).trialInfo);   
+      trialInfoStruct(iSubject).phonemeTrial = phonemeSequenceTrialParser(ieegHGStructResponse(iSubject).trialInfo);   
     end
 
 end
 
-
 ieegHGStructResponse(emptyIds) = [];
 trialInfoStruct(emptyIds) = [];
 
-% Pooling across channels based on minimum trial matching
+% Pooling across channels based on maximum trial matching; zero pad extra
+% trials
  [ieegStructPooled,phonemeTrialPooled,channelNamePooled] = poolChannelWithMaxTrial(ieegHGStructResponse,trialInfoStruct);
 
-
-
+%%
 % Decoder model
 
+load('pooledSubject_Phoneme_Sequencing_production_temporal_zscore_prodelecs_data.mat')
+
+
 vTrials = phonemeTrialPooled.syllableUnit(:,1)'==1;
+syllableUnit = phonemeTrialPooled.syllableUnit(:,1)';
 cTrials = ~vTrials;
 % phoneme decoder
 phonemeUnits = phonemeTrialPooled.phonemeUnit(:,1)';
 phonemeClass = phonemeTrialPooled.phonemeClass(:,1)';
 
-dObj = decoderClass(20,[90],3);
+dObj = decoderClass(10,[10:10:90],1);
 decodeResultStruct = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [-0.5 0.5])
 
 % consonant decoder
-dObj = decoderClass(20,[10:10:90],1);
+dObj = decoderClass(10,[10:10:90],1);
 decodeResultStructConsonant = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [-0.5 0.5],selectTrial=find(cTrials))
 
 % vowel decoder
-dObj = decoderClass(20,[10:10:90],1);
+dObj = decoderClass(10,[10:10:90],1);
 decodeResultStructVowel = dObj.baseClassify(ieegStructPooled,phonemeUnits, d_time_window = [-0.5 0.5],selectTrial=find(vTrials))
 
 % articulator decoder
-dObj = decoderClass(20,[10:10:90],1);
+dObj = decoderClass(10,[10:10:90],1);
 decodeResultStructArticulator = dObj.baseClassify(ieegStructPooled,phonemeClass, d_time_window = [-0.5 0.5])
 
-save(fullfile(['pooledSubject_' Task.Name '_production_sensorimotor_zscore' ...
+% syllable decoder
+dObj = decoderClass(10,[10:10:90],1);
+decodeResultStructSyllable = dObj.baseClassify(ieegStructPooled,syllableUnit, d_time_window = [-0.5 0.5])
+
+save(fullfile(['pooledSubject_' Task.Name '_production_temporal_zscore' ...
     '_prodelecs_data.mat']),...
     'ieegStructPooled','phonemeTrialPooled',...
-    'channelNamePooled','timeEpoch','decodeResultStruct','decodeResultStructConsonant'...
+    'channelNamePooled','timeEpoch','decodeResultStruct','decodeResultStructConsonant','decodeResultStructSyllable'...
     ,'decodeResultStructVowel','decodeResultStructArticulator','-v7.3');
-
+%% Subject specific decoding
+decodeResultStruct = {};
+parfor iSubject = 1:length(ieegHGStructResponse)
+    warning off;
+    iSubject
+    dObj = decoderClass(10,[10:10:90],1);
+    decodeResultStruct{iSubject} = dObj.baseClassify(ieegHGStructResponse(iSubject).ieegHGNorm,trialInfoStruct(iSubject).phonemeTrial.phonemeUnit(:,1)'  , d_time_window = [-0.25 0.25]);
+end
 %% Linear modeling
 
 cvcIds = find(phonemeTrialPooled.syllableUnit(:,1)'==2);
