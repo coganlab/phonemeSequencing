@@ -170,7 +170,7 @@ scrsize = get(0, 'Screensize');
 
 figure('Position', [scrsize(1) scrsize(2) scrsize(3) scrsize(4)/2]);
 
-ax = visTimePlot3(timeEpoch,squeeze(mean(ieegStructPooled.data,2)),colval = colors(4,:))
+visTimePlot(timeEpoch,squeeze(mean(ieegStructPooled.data,2)),colval = colors(5,:), labels = 'Response Onset (s)' )
 hold on
 visTimePlot3(timeEpoch,squeeze(mean(ieegStructPooled.data,2)),colval = colors(15,:),tileAxis = ax)
 ylabel('HG (z-score)')
@@ -223,3 +223,42 @@ xline(2.25, '-','Go cue onset','LineWidth',2, 'Color','k');
 xline(2.75, ':','Stitch','LineWidth',2, 'Color','k');
 xline(3.75, '-','Response onset','LineWidth',2, 'Color','k');
 set(gca,'FontSize',15);
+
+%% 
+
+figure; 
+bar([37.5 34 21.6 20.7 16.4 39.4 ]);
+yline(11.11, '--','chance','LineWidth',2, 'LabelHorizontalAlignment','left');
+ylabel('P1 accuracy (%)');
+formatTicks(gca)
+set(gca,'xticklabels',{'All-ROI','MTG&STG','IPC','MFG','IFG','SMC'})
+
+figure; 
+bar([45 40 19 26.5 21.4 45 ]);
+yline(20, '--','chance','LineWidth',2, 'LabelHorizontalAlignment','left');
+ylabel('C1 accuracy (%)');
+formatTicks(gca)
+set(gca,'xticklabels',{'All-ROI','MTG&STG','IPC','MFG','IFG','SMC'})
+
+
+figure; 
+bar([29.8 31 25.8 34.6 28.9 38.4 ]);
+yline(25, '--','chance','LineWidth',2, 'LabelHorizontalAlignment','left');
+ylabel('V1 accuracy (%)');
+formatTicks(gca)
+set(gca,'xticklabels',{'All-ROI','MTG&STG','IPC','MFG','IFG','SMC'})
+
+figure; 
+bar([64 63.9 39.9 40.9 31.3 64.4 ]);
+yline(25, '--','chance','LineWidth',2, 'LabelHorizontalAlignment','left');
+ylabel('Articulator accuracy (%)');
+formatTicks(gca)
+set(gca,'xticklabels',{'All-ROI','MTG&STG','IPC','MFG','IFG','SMC'})
+
+
+figure; 
+bar([94 92.7 72.6 68.7 57.7 91.4 ]);
+yline(50, '--','chance','LineWidth',2, 'LabelHorizontalAlignment','left');
+ylabel('Syllable accuracy (%)');
+formatTicks(gca)
+set(gca,'xticklabels',{'All-ROI','MTG&STG','IPC','MFG','IFG','SMC'})
