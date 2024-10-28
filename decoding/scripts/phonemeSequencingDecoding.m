@@ -3,7 +3,7 @@ global DUKEDIR
 DUKEDIR = 'E:\Box Sync\Box Sync\CoganLab\D_Data\Phoneme_Sequencing';
 dLabels = dir(DUKEDIR);
 dLabels = dLabels(3:end);
-resFold = 'E:\inUnitData\phonemeSequencing\decoding\results\v8';
+resFold = 'D:\gitlab\phonemeSequencing\decoding\results\v8';
 tw = [-2 2]; % epoch time window
 etw = [-1 1]; % high gamma time window
 

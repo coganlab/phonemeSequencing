@@ -22,7 +22,7 @@ Subject = popTaskSubjectData(Task.Name);
 
 DUKEDIR=['C:\Users\gcoga\Box\CoganLab\D_Data'];
 DUKEDIR = [DUKEDIR '/Phoneme_Sequencing'];
-
+%%
 SNList=1:length(Subject);
 counterChan=0;
 for iSN=1:length(SNList)

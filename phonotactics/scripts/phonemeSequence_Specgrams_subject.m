@@ -1,7 +1,5 @@
  global BOX_DIR
-%BOX_DIR='C:\Users\gcoga\Box';
-% BOX_DIR='H:\Box Sync';
-% RECONDIR='C:\Users\gcoga\Box\ECoG_Recon';
+
 saveFolder = '\TempDecode\temporal_nosig\';
 BOX_DIR = 'C:\Users\sd355\Box'
 fDown = 200; %Downsampled Sampling Frequency
@@ -13,8 +11,8 @@ Task.Name='Phoneme_Sequencing';
 Subject = popTaskSubjectData(Task);
 
 Task.Base.Name='Start';
-Task.Base.Epoch='Auditory';
-Task.Base.Time=[-0.25 0];
+Task.Base.Epoch='Start';
+Task.Base.Time=[-0.5 0];
 
 
 TASK_DIR=([BOX_DIR '/CoganLab/D_Data/' Task.Name]);
@@ -32,7 +30,7 @@ Task.Conds(1).Field(2).Name='Response';
 Task.Conds(1).Field(2).Epoch='ResponseStart';
 Task.Conds(1).Field(2).Time=[-1 1.5];
 %%
-for iSubject=32
+for iSubject=31
      
     Subject(iSubject).Name
     Trials=Subject(iSubject).Trials;
@@ -51,17 +49,17 @@ for iSubject=32
     ifgChan = contains(anatName,'opercularis');
     frontalChan = contains(anatName,'front');
     temporalChan = contains(anatName,'temporal');
-    anatChan = ones(1,length(anatName));
-    disp(['Number of anatomical channels : ' num2str(length(anatChan))]);
+    anatChan = sensorymotorChan;
+    disp(['Number of anatomical channels : ' num2str(sum(anatChan))]);
     
     % prodDelayElecs is loaded from the mat file in 'forKumar'
     % Come up with automated way to parse necessary channels
     channelName = {Subject(iSubject).ChannelInfo.Name};
     channelName(cellfun(@isempty,channelName)) = {'dummy'};
     channelName = channelName(chanIdx);
-    [~,delayChan] = intersect(channelName,elecNameProductionGM); 
+    [~,prodChan] = intersect(channelName,elecNameProductionClean); 
    
-    chan2select = intersect(find(anatChan),delayChan);
+    chan2select = intersect(find(anatChan),prodChan);
 
      if(isempty(chan2select))
         disp('No channels found; Iterating next subject');

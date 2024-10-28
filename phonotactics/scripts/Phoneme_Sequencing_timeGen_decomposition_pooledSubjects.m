@@ -24,8 +24,8 @@ Subject = popTaskSubjectData(Task);
 %selectRoi = {'supramarginal','inferiorparietal'};
 %selectRoi = {'opercula','triangular'};
  %selectRoi = {'middlefrontal'};
-selectRoi = {'central'};
- %selectRoi = '';
+%selectRoi = {'central'};
+ selectRoi = '';
 respTimeThresh = 0;
 timeEpoch = [-0.5000    1.5000;   -0.75    0.5;   -1.0000    1.5];
 

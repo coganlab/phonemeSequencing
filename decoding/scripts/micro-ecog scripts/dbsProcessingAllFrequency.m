@@ -1566,6 +1566,9 @@ for iPhon = 1:size(chanLabAuc,2)
      [intensePhoneme(iPhon),maxId] = max([stats(:).MaxIntensity]+[stats(:).MeanIntensity]);
     hold on;
     scatter(stats(maxId).ConvexHull(:,1)',stats(maxId).ConvexHull(:,2)',20,'r','filled')
+    hold on
+    scatter(x,y,sz,'d')
+    scatter(stats(maxId).Centroid(1),stats(maxId).Centroid(1),20,'x','r','filled')
     x = sqrt(stats(maxId).ConvexArea);
     phonArea = (1.33*x)^2
     end

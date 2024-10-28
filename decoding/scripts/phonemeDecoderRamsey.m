@@ -4,11 +4,12 @@ DUKEDIR = 'C:\Users\sd355\Box\CoganLab\Data\Micro\Processed Data';
 dLabels = dir(DUKEDIR);
 dLabels = dLabels(3:end);
 
-tw = [-1.5 1.5]; % time window
+tw = [-2 2]; % time window
+
 
 
 baseTW = [-0.5 0]; % preonset time window
-activeTW = [-1 1]; % postonset time window
+activeTW = [-1.5 1.5]; % postonset time window
 gammaF = [70 150]; % frequency in Hz
 fsDown = 200;
 % load('channelMap.mat');
@@ -25,28 +26,44 @@ fsD = Experiment.processing.ieeg.sample_rate;
 Trials = dbTrials(subjectId,Experiment.recording.recording_day,'Speech_OvertMimeMove');
 
 trialFiles = strcat('\',Experiment.recording.recording_day,'\mat\trialInfo.mat');
-[ieegResponse,~,trigOnset]=trialIEEGUpdate(Trials,selectedChannels,['phon' num2str(iPhon) 'Onset'],'ieeg',tw.*1000);
+[ieegResponse,~,trigOnset]=trialIEEGUpdate(Trials,selectedChannels,['ResponseOnset'],'ieeg',tw.*1000);
+[~,~,trigOffset]=trialIEEGUpdate(Trials,selectedChannels,['ResponseOffset'],'ieeg',tw.*1000);
+% [ieegPhon2]=trialIEEGUpdate(Trials,selectedChannels,['phon2Onset'],'ieeg',tw.*1000);
+% [ieegPhon3]=trialIEEGUpdate(Trials,selectedChannels,['phon3Onset'],'ieeg',tw.*1000);
+%[ieegResponse,~,trigOnset]=trialIEEGUpdate(Trials,selectedChannels,['ResponseOnset'],'ieeg',tw.*1000);
 [ieegAuditory,~,trigAuditory]=trialIEEGUpdate(Trials,selectedChannels,'Auditory','ieeg',tw.*1000);
 
 ieegAuditory = permute(ieegAuditory,[2,1,3]);
 ieegResponse = permute(ieegResponse,[2,1,3]);
+% ieegPhon2 = permute(ieegPhon2,[2,1,3]);
+% ieegPhon3 = permute(ieegPhon3,[2,1,3]);
  
 respId = find(~isnan(trigOnset));
 ieegResponse = ieegResponse(:,respId,:);
 ieegAuditory = ieegAuditory(:,respId,:); 
+% ieegPhon2 = ieegPhon2(:,respId,:);
+% ieegPhon3 = ieegPhon3(:,respId,:); 
 Trials = Trials(respId);
   
 trigOns = trigOnset(respId)./fsD;
 trigAud = trigAuditory(respId)./fsD;
+trigOfs = trigOffset(respId)./fsD;
 respTime  = trigOns-trigAud;
+respDuration = trigOfs - trigOns;
 [respTimeSort,sortId] = sort(respTime);
 %% Ieeg Class definition
 
-ieegBase = ieegStructMicro(ieegAuditory, fsD, tw, [1 fsD/2], 'Auditory', chanMap);
-ieegResponse = ieegStructMicro(ieegResponse, fsD, tw, [1 fsD/2], 'Response', chanMap);
+ieegBase = ieegStructClass(ieegAuditory, fsD, tw, [1 fsD/2], 'Auditory');
+ieegResponse = ieegStructClass(ieegResponse, fsD, tw, [1 fsD/2], 'Response');
+% ieegPhon2 = ieegStructClass(ieegPhon2, fsD, tw, [1 fsD/2], 'Phoneme2');
+% ieegPhon3 = ieegStructClass(ieegPhon3, fsD, tw, [1 fsD/2], 'Phoneme3');
+% % for S16 only
+% [NumTrials, goodtrials] = remove_bad_trials(ieegResponse.data, "method",2,"threshold",25);
+% goodTrialsCommon = extractCommonTrials(goodtrials);
 
 %% Phoneme trial parser
-phonemeTrial = phonemeSequenceTrialParser(Trials);
+load([DUKEDIR '/' subjectId '/' trialFiles])
+phonemeTrial = phonemeSequenceTrialParser(trialInfo(respId));
 %% Common average referencing
 load([subjectId '_impedance.mat'])
 higImpId = find(log10(impedance)>6);
@@ -54,13 +71,26 @@ ieegBaseCar = ieegBase.extractCar(higImpId);
 clear ieegBase
 ieegResponseCar = ieegResponse.extractCar(higImpId);
 clear ieegResponse
+% ieegPhon2Car = ieegPhon2.extractCar(higImpId);
+% clear ieegPhon2
+% ieegPhon3Car = ieegPhon3.extractCar(higImpId);
+% clear ieegPhon3
+
+
+
 %% Extract High Gamma
+load([subjectId '_sigChannel.mat'])
 normType =2 ;
 ieegHGBase = ieegBaseCar.extractHiGamma(fsDown,baseTW);
 normFactor = extractHGnormFactor(ieegHGBase);
-ieegHGBaseNorm = normHiGamma(ieegHGBase,normFactor,2);
+% ieegHGBaseNorm = normHiGamma(ieegHGBase,normFactor,normType);
+% ieegHGAuditoryNorm = ieegBaseCar.extractHiGamma(fsDown,activeTW,normFactor, normType);
 ieegHGRespNorm = ieegResponseCar.extractHiGamma(fsDown,activeTW,normFactor, normType);
+% ieegHGPhon2Norm = ieegPhon2Car.extractHiGamma(fsDown,activeTW,normFactor, normType);
+% ieegHGPhon3Norm = ieegPhon3Car.extractHiGamma(fsDown,activeTW,normFactor, normType);
+% sigChannel = find(p_masked);
 
+%save([subjectId '_data.mat'],'ieegHGAuditoryNorm','ieegHGRespNorm', 'phonemeTrial', 'sigChannel','chanMap');   
 %% Extracting Ramsey trials p, k, u, a, rest
 phonemeUnits = phonemeTrial.phonemeUnit(:,1)';
 rTrials = phonemeUnits == 1|phonemeUnits == 4 |phonemeUnits == 6|phonemeUnits == 9;
@@ -80,12 +110,12 @@ rPhonemeUnits = phonemeUnits(rTrials);
 % % rPhonemeUnits = [rPhonemeUnits 10.*ones(1,length(selectTrials1))];
 
 %% decoder object
-load([subjectId '_sigChannel.mat'])
-dObj = decoderClass(20,80,1);
+
+dObj = decoderClass(20,[80],10);
 % ifgChan = [16 12 126 122 105 104 114 108 5 62 37 11 21 48 63 8];
 %  ifgChanFp =    [124 101 106 111 100 102 20 22 7 24 9 30 39 46 50 6 61 31 55 70 69 77 68 81 82 72];
 % smcChan = setdiff(sigChannel,[ifgChan ifgChanFp]);
-decodeResultStruct = dObj.baseClassify(ieegHGRespNorm,phonemeUnits, [-0.5 0.5], sigChannel)
+decodeResultStruct = dObj.baseClassify(ieegHGRespNorm,phonemeUnits, d_time_window =  [-0.5 0.5], selectChannel = sigChannel)
 
 
 % channels2plot = zeros(1,256);

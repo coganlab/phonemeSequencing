@@ -15,7 +15,7 @@ fsDown = 200;
 % chanMap = (chanMap');
 % selectedChannels = sort(chanMap(~isnan(chanMap)))';
 %% data Loading
-subjectId = 'S22';
+subjectId = 'S14';
 iPhon = 1
 Experiment = loadExperiment(subjectId);
 chanMap = Experiment.recording.channel_map;
@@ -71,9 +71,9 @@ vcvTrials = ~cvcTrials;
 %% Setting up decoder
 numFold = 20;
 varExplained = 80;
-phonRegress = 'BLICK';
-timeRes = 0.025;
-timeWin = 0.25;
+phonRegress = 'Pfwd1';
+timeRes = 0.01;
+timeWin = 0.2;
 phonDecode = phonemeDecoderClass(numFold,varExplained);
 disp('CVC 1D temporal generalization');
 % 1D temporalGeneralization            
